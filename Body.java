@@ -1,4 +1,6 @@
 import java.awt.Graphics;
+import java.awt.Point;
+import java.awt.geom.Point2D;
 
 public class Body {
 	private double x;
@@ -23,8 +25,7 @@ public class Body {
 		return name;
 	}
 
-	public void draw(Graphics gtb, Space space, Frustrum frustrum) {
+	public void draw(Graphics g, Space s, Frustrum frustrum) {
 		// TODO Auto-generated method stub
-		
 	}
 }

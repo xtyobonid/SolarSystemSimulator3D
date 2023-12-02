@@ -1,170 +1,130 @@
-
+import java.awt.geom.Point2D;
 
 public class Frustrum {
-	public static final int TOP = 0;
-	public static final int BOTTOM = 1;
-	public static final int LEFT = 2;
-	public static final int RIGHT = 3;
-	public static final int NEARP = 4;
-	public static final int FARP = 5;
-	
-	public static final double ANG2RAD = 3.14159265358979323846/180.0;
-	
-	Plane[] pl = new Plane[6];
-	Vector3d ntl, ntr, nbl, nbr, ftl, ftr, fbl, fbr;
-	double nearD, farD, ratio, angle, tang;
-	double nw, nh, fw, fh;
-	
-	public Vector3d p;
-	public Vector3d l;
-	public Vector3d u;
-	
-	public void setCamInternals(double angle, double ratio, double nearD, double farD, Vector3d p, Vector3d l, Vector3d u) {
-		// store the information
-		this.ratio = ratio;
-		this.angle = angle;
-		this.nearD = nearD;
-		this.farD = farD;
-		this.p = p;
-		this.l = l;
-		this.u = u;
+    public double fov;
+    public double aspectRatio;
+    public double near;
+    public double far;
+    public double cameraX;
+    public double cameraY;
+    public double cameraZ;
+    public double cameraYaw, cameraPitch; 
+    private double[] projectionMatrix;
+    
+    public Frustrum(double fov, double aspectRatio, double near, double far) {
+        this.fov = fov;
+        this.aspectRatio = aspectRatio;
+        this.near = near;
+        this.far = far;
+        updateProjectionMatrix();
+    }
 
-		// compute width and height of the near and far plane sections
-		tang = (double)Math.tan(ANG2RAD * angle * 0.5) ;
-		nh = nearD * tang;
-		nw = nh * ratio;
-		fh = farD  * tang;
-		fw = fh * ratio;
-	}
-	
-	public void setCamDef() {
-		Vector3d dir,nc,fc,X,Y,Z;
+    public void setCameraPosition(double x, double y, double z) {
+        this.cameraX = x;
+        this.cameraY = y;
+        this.cameraZ = z;
+    }
+    
+    public double[] computeViewMatrix() {
+        // Compute the rotation matrix based on the yaw and pitch angles
+        double cosYaw = (double) Math.cos(cameraYaw);
+        double sinYaw = (double) Math.sin(cameraYaw);
+        double cosPitch = (double) Math.cos(cameraPitch);
+        double sinPitch = (double) Math.sin(cameraPitch);
 
-		//l = z
-		//u = y
-		//right = l x u = x
-		Vector3d right = l.cross(u);
-		// compute the centers of the near and far planes
-		nc = p.add(l.mul(nearD));
-		fc = p.add(l.mul(farD));
+        double[] rotationMatrix = new double[9];
+        rotationMatrix[0] = cosYaw;
+        rotationMatrix[1] = -sinYaw * cosPitch;
+        rotationMatrix[2] = sinYaw * sinPitch;
+        rotationMatrix[3] = 0;
+        rotationMatrix[4] = cosPitch;
+        rotationMatrix[5] = sinPitch;
+        rotationMatrix[6] = -sinYaw;
+        rotationMatrix[7] = -cosYaw * cosPitch;
+        rotationMatrix[8] = cosYaw * sinPitch;
 
-		// compute the 4 corners of the frustrum on the near plane
-		ntl = nc.add(u.mul(nh)).sub(right.mul(nw));
-		ntr = nc.add(u.mul(nh)).add(right.mul(nw));
-		nbl = nc.sub(u.mul(nh)).sub(right.mul(nw));
-		nbr = nc.sub(u.mul(nh)).add(right.mul(nw));
+        // Compute the view matrix
+        double[] viewMatrix = new double[16];
+        viewMatrix[0] = rotationMatrix[0];
+        viewMatrix[1] = rotationMatrix[1];
+        viewMatrix[2] = rotationMatrix[2];
+        viewMatrix[3] = 0.0;
+        viewMatrix[4] = rotationMatrix[3];
+        viewMatrix[5] = rotationMatrix[4];
+        viewMatrix[6] = rotationMatrix[5];
+        viewMatrix[7] = 0.0;
+        viewMatrix[8] = rotationMatrix[6];
+        viewMatrix[9] = rotationMatrix[7];
+        viewMatrix[10] = rotationMatrix[8];
+        viewMatrix[11] = 0.0;
+        viewMatrix[12] = -(cameraX * viewMatrix[0] + cameraY * viewMatrix[4] + cameraZ * viewMatrix[8]);
+        viewMatrix[13] = -(cameraX * viewMatrix[1] + cameraY * viewMatrix[5] + cameraZ * viewMatrix[9]);
+        viewMatrix[14] = -(cameraX * viewMatrix[2] + cameraY * viewMatrix[6] + cameraZ * viewMatrix[10]);
+        viewMatrix[15] = 1.0;
 
-		// compute the 4 corners of the frustrum on the far plane
-		ftl = fc.add(u.mul(fh)).sub(right.mul(fw));
-		ftr = fc.add(u.mul(fh)).add(right.mul(fw));
-		fbl = fc.sub(u.mul(fh)).sub(right.mul(fw));
-		fbr = fc.sub(u.mul(fh)).add(right.mul(fw));
+        return viewMatrix;
+    }
+    
+    public void updateProjectionMatrix() {
+        double f = 1.0 / (double) Math.tan(Math.toRadians(fov) / 2.0);
+        
+        projectionMatrix = new double[16];
+        
+        projectionMatrix[0] = f / aspectRatio;
+        projectionMatrix[1] = 0.0;
+        projectionMatrix[2] = 0.0;
+        projectionMatrix[3] = 0.0;
+        
+        projectionMatrix[4] = 0.0;
+        projectionMatrix[5] = f;
+        projectionMatrix[6] = 0.0;
+        projectionMatrix[7] = 0.0;
+        
+        projectionMatrix[8] = 0.0;
+        projectionMatrix[9] = 0.0;
+        projectionMatrix[10] = (far + near) / (near - far);
+        projectionMatrix[11] = -1.0;
+        
+        projectionMatrix[12] = 0.0;
+        projectionMatrix[13] = 0.0;
+        projectionMatrix[14] = (2.0 * far * near) / (near - far);
+        projectionMatrix[15] = 0.0;
+    }
+    
+    public double[] worldToCameraSpace(double x, double y, double z, double[] viewMatrix) {
+        double[] cameraSpacePosition = new double[4];
+        cameraSpacePosition[0] = (float) (viewMatrix[0] * x + viewMatrix[4] * y + viewMatrix[8] * z + viewMatrix[12]);
+        cameraSpacePosition[1] = (float) (viewMatrix[1] * x + viewMatrix[5] * y + viewMatrix[9] * z + viewMatrix[13]);
+        cameraSpacePosition[2] = (float) (viewMatrix[2] * x + viewMatrix[6] * y + viewMatrix[10] * z + viewMatrix[14]);
+        cameraSpacePosition[3] = (float) (viewMatrix[3] * x + viewMatrix[7] * y + viewMatrix[11] * z + viewMatrix[15]);
 
-		// compute the six planes
-		// the function set3Points assumes that the points
-		// are given in counter clockwise order
-		for (int i = 0; i < pl.length; i++) {
-			pl[i] = new Plane();
-		}
-		
-		pl[TOP].set3Points(ntr,ntl,ftl);
-		pl[BOTTOM].set3Points(nbl,nbr,fbr);
-		pl[LEFT].set3Points(ntl,nbl,fbl);
-		pl[RIGHT].set3Points(nbr,ntr,fbr);
-		pl[NEARP].set3Points(ntl,ntr,nbr);
-		pl[FARP].set3Points(ftr,ftl,fbl);
-	}
-	
-	public boolean sphereInFrustum(Vector3d p, double radius) {
+        return cameraSpacePosition;
+    }
+    
+    public Point2D.Double clipSpaceToScreenSpace(double x, double y, double z, double w, int screenWidth, int screenHeight) {
+        if (w > 0) {
+            double projectedX = x / w;
+            double projectedY = y / w;
 
-		double distance;
-		boolean result = true;
-		
-		// loop max value of 6 checks far plane, 5 doesn't for infinite view distance
-		for(int i = 0; i < 5; i++) {
-			distance = pl[i].distance(p);
-			if (distance < 0)
-				return false;
-		}
-		return(result);
-	}
+            int screenX = (int) ((projectedX * 0.5 + 0.5) * screenWidth);
+            int screenY = (int) ((-projectedY * 0.5 + 0.5) * screenHeight);
 
-	//http://www.ambrsoft.com/TrigoCalc/Plan3D/Plane3D_.htm
-	//http://www.ambrsoft.com/TrigoCalc/Line3D/Line3D_.htm
-	//http://www.ambrsoft.com/TrigoCalc/Plan3D/PlaneLineIntersection_.htm
-	public Vector3d getIntersectionWithViewPlane(Vector3d point, int VIEW_WIDTH, double radius) {
-		
-		//plane equation
-		double x1 = pl[NEARP].a.x;
-		double y1 = pl[NEARP].a.y;
-		double z1 = pl[NEARP].a.z; 
-		
-		double x2 = pl[NEARP].b.x;
-		double y2 = pl[NEARP].b.y;
-		double z2 = pl[NEARP].b.z; 
-		
-		double x3 = pl[NEARP].c.x;
-		double y3 = pl[NEARP].c.y;
-		double z3 = pl[NEARP].c.z; 
-		
-		double planeA = (y2 * z3) - (y3 * z2) - (y1 * (z3 - z2)) + (z1 * (y3 - y2));
-		double planeB = (x1 * (z3 - z2)) - ((x2 * z3) - (x3 * z2)) + (z1 * (x2 - x3));
-		double planeC = (x1 * (y2 - y3)) - (y1 * (x2 - x3)) + ((x2 * y3) - (x3 * y2));
-		double planeD = -(x1 * ((y2 * z3) - (y3 * z2))) + (y1 * ((x2 * z3) - (x3 * z2))) - (z1 * ((x2 * y3) - (x3 * y2)));
-		
-		double lineX = p.x;
-		double lineY = p.y;
-		double lineZ = p.z;
-		double lineA = point.x - p.x;
-		double lineB = point.y - p.y;
-		double lineC = point.z - p.z;
-		
-		double top = -((planeA * lineX) + (planeB * lineY) + (planeC * lineZ) + planeD);
-		double bottom = (planeA * lineA) + (planeB * lineB) + (planeC * lineC);
-		double t = top/bottom;
-		
-		double intersectX = lineX + (lineA * t);
-		double intersectY = lineY + (lineB * t);
-		double intersectZ = lineZ + (lineC * t);
-		Vector3d intersect = new Vector3d(intersectX, intersectY, intersectZ);
-		
-		//get distance of near plane intersection to 2 of the near plane corners, top left and top right
-		double distanceToTopLeft = intersect.distance(pl[NEARP].a);
-		double distanceToTopRight = intersect.distance(pl[NEARP].b);
-		
-		//convert to screen coords
-		//http://www.ambrsoft.com/TrigoCalc/Circles2/circle2intersection/CircleCircleIntersection.htm
-		double tlCircleA = 0;
-		double tlCircleB = 0;
-		double tlCircleR = ((distanceToTopLeft/nw) * VIEW_WIDTH)/2;
-		
-		double trCircleA = 0;
-		double trCircleB = VIEW_WIDTH;
-		double trCircleR = ((distanceToTopRight/nw) * VIEW_WIDTH)/2;
-		
-		double calcD = java.lang.Math.sqrt(java.lang.Math.pow(trCircleA - tlCircleA, 2) + java.lang.Math.pow(trCircleB - tlCircleB, 2));
-		double calcDelta = 0.25 * java.lang.Math.sqrt(java.lang.Math.abs((calcD + tlCircleR + trCircleR) * (calcD + tlCircleR - trCircleR) * (calcD - tlCircleR + trCircleR) * (-calcD + tlCircleR + trCircleR)));
-		
-		double screenX = java.lang.Math.abs(((tlCircleA + trCircleA)/2) + (((trCircleA - tlCircleA) * (java.lang.Math.pow(tlCircleR, 2) - java.lang.Math.pow(trCircleR, 2))) / (2 * java.lang.Math.pow(calcD, 2))) + (2 * ((tlCircleB + trCircleB)/(java.lang.Math.pow(calcD, 2))) * calcDelta));;
-		double screenY = java.lang.Math.abs(((tlCircleB + trCircleB)/2) + (((trCircleB - tlCircleB) * (java.lang.Math.pow(tlCircleR, 2) - java.lang.Math.pow(trCircleR, 2))) / (2 * java.lang.Math.pow(calcD, 2))) + (2 * ((tlCircleA + trCircleA)/(java.lang.Math.pow(calcD, 2))) * calcDelta));
-		
-		
-		
-		//http://neoprogrammics.com/sphere_angular_diameter/
-		double distance = p.distance(point);
-		double screenR = 2 * java.lang.Math.acos((java.lang.Math.sqrt(java.lang.Math.pow(distance, 2) - java.lang.Math.pow(radius, 2)))/(distance));
-		if (distance > radius) {
-			screenR = (screenR * 180) / java.lang.Math.PI;
-		} else {
-			screenR = angle*2;
-		}
-		screenR = (screenR/angle * VIEW_WIDTH)/2;
-		
-		//System.out.println(screenR);
-		
-		//return 
-		Vector3d ret = new Vector3d(screenX, screenY, screenR);
-		return ret;
-	}
-	
+            return new Point2D.Double(screenX, screenY);
+        } else {
+            // The point is behind the camera, so don't render it
+            return null;
+        }
+    }
+    
+    public Point2D.Double project3DTo2D(double x, double y, double z, int screenWidth, int screenHeight) {
+        // Multiply the camera space coordinates by the projection matrix
+        double[] clipSpacePosition = new double[4];
+        clipSpacePosition[0] = projectionMatrix[0] * x + projectionMatrix[4] * y + projectionMatrix[8] * z + projectionMatrix[12];
+        clipSpacePosition[1] = projectionMatrix[1] * x + projectionMatrix[5] * y + projectionMatrix[9] * z + projectionMatrix[13];
+        clipSpacePosition[2] = projectionMatrix[2] * x + projectionMatrix[6] * y + projectionMatrix[10] * z + projectionMatrix[14];
+        clipSpacePosition[3] = projectionMatrix[3] * x + projectionMatrix[7] * y + projectionMatrix[11] * z + projectionMatrix[15];
+
+        // Convert the clip space coordinates to screen space
+        return clipSpaceToScreenSpace(clipSpacePosition[0], clipSpacePosition[1], clipSpacePosition[2], clipSpacePosition[3], screenWidth, screenHeight);
+    }
 }

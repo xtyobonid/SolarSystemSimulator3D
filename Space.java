@@ -66,21 +66,18 @@ public class Space extends Canvas implements MouseMotionListener, MouseWheelList
 		viewX = ACTUAL_WIDTH/2;
 		viewY = ACTUAL_HEIGHT/2;
 		
-		yaw = 0;
+		yaw = 90;
 		pitch = 0;
 		
 		//camera start location
-		Vector3d p = new Vector3d(star.getX()-1425000, star.getY(), 0);
+		//Vector3d position = new Vector3d(star.getX()-936350, star.getY(), 0);
 		//camera start angle
 		Vector3d l = new Vector3d(1, 0, 0);
 		//camera start up
 		Vector3d u = new Vector3d(0, 1, 0);
-		
-		l.normalize();
-		u.normalize();
-		frustrum = new Frustrum();
-		frustrum.setCamInternals(105, VIEW_WIDTH/VIEW_HEIGHT, 1, ACTUAL_WIDTH*2, p, l, u);
-		frustrum.setCamDef();
+
+		frustrum = new Frustrum(105, VIEW_WIDTH/VIEW_HEIGHT, 1, ACTUAL_WIDTH*2);
+		frustrum.setCameraPosition(star.getX()-934000, star.getY(), 0);
 				
 		this.addKeyListener(this);
 		this.addMouseListener(this);
@@ -129,6 +126,9 @@ public class Space extends Canvas implements MouseMotionListener, MouseWheelList
 		
 		//DRAW
 		
+//		System.out.println("Yaw: " + yaw);
+//		System.out.println("Pitch: " + pitch);
+		
 		//add all bodies to list, sort by distance to camera, draw closest to camera first
 		ArrayList<Body> drawList = new ArrayList<Body>();
 		
@@ -142,38 +142,81 @@ public class Space extends Canvas implements MouseMotionListener, MouseWheelList
 		
 		drawList.add(star);
 		
+//		for (Body b: drawList) {
+//			System.out.println(b.getName());
+//		}
+		
 		drawList = sortDrawList(drawList);
+		
+//		for (Body b: drawList) {
+//			System.out.println(b.getName());
+//		}
+		
+		frustrum.cameraYaw = yaw;
+		frustrum.cameraPitch = pitch;
 		
 		for(Body b: drawList) {
 			b.draw(gtb, this, frustrum);
 		}
-
-		//for (Moon s: ss) {
-	//		s.draw(gtb, this, frustrum);
-		//}
-			
-		//for (Planet p: ps) {
-		//	p.draw(gtb, this, frustrum);
-		//}
-		
-		
-		//star.draw(gtb, this, frustrum);
 		
 		tdg.drawImage(back, null, 0, 0);
 		
 	}
 	
+	public double[] computeViewMatrix() {
+	    double[] viewMatrix = new double[16];
+
+	    // Compute the forward vector based on yaw and pitch
+	    double forwardX = (float) (Math.cos(Math.toRadians(yaw)) * Math.cos(Math.toRadians(pitch)));
+	    double forwardY = (float) (Math.sin(Math.toRadians(yaw)) * Math.cos(Math.toRadians(pitch)));
+	    double forwardZ = (float) Math.sin(Math.toRadians(pitch));
+
+	    // Compute the right vector by taking the cross product of the forward vector and the up vector (0, 0, 1)
+	    double rightX = forwardY;
+	    double rightY = -forwardX;
+	    double rightZ = 0;
+
+	    // Compute the actual up vector by taking the cross product of the right vector and the forward vector
+	    double upX = forwardZ * rightY - forwardY * rightZ;
+	    double upY = forwardZ * rightX - forwardX * rightZ;
+	    double upZ = forwardX * rightY - forwardY * rightX;
+
+	    double cameraX = frustrum.cameraX;
+	    double cameraY = frustrum.cameraY;
+	    double cameraZ = frustrum.cameraZ;
+	    
+	    // Set the view matrix
+	    viewMatrix[0] = rightX;
+	    viewMatrix[1] = rightY;
+	    viewMatrix[2] = rightZ;
+	    viewMatrix[3] = 0.0;
+	    viewMatrix[4] = upX;
+	    viewMatrix[5] = upY;
+	    viewMatrix[6] = upZ;
+	    viewMatrix[7] = 0.0;
+	    viewMatrix[8] = forwardX;
+	    viewMatrix[9] = forwardY;
+	    viewMatrix[10] = forwardZ;
+	    viewMatrix[11] = 0.0;
+	    viewMatrix[12] = -rightX * cameraX - rightY * cameraY - rightZ * cameraZ;
+	    viewMatrix[13] = -upX * cameraX - upY * cameraY - upZ * cameraZ;
+	    viewMatrix[14] = -forwardX * cameraX - forwardY * cameraY - forwardZ * cameraZ;
+	    viewMatrix[15] = 1.0;
+
+	    return viewMatrix;
+	}
+	
 	private static ArrayList<Body> sortDrawList(ArrayList<Body> drawList) {
 		int n = drawList.size();
         for (int i = 1; i < n; ++i) {
-            double key = new Vector3d(drawList.get(i).getX(), drawList.get(i).getY(), 0).distance(frustrum.p);
+            double key = new Vector3d(drawList.get(i).getX(), drawList.get(i).getY(), 0).distance(new Vector3d(frustrum.cameraX, frustrum.cameraY, frustrum.cameraZ));
             Body keyBody = drawList.get(i);
             int j = i - 1;
  
             /* Move elements of arr[0..i-1], that are
                greater than key, to one position ahead
                of their current position */
-            while (j >= 0 && new Vector3d(drawList.get(j).getX(), drawList.get(j).getY(), 0).distance(frustrum.p) < key) {
+            while (j >= 0 && new Vector3d(drawList.get(j).getX(), drawList.get(j).getY(), 0).distance(new Vector3d(frustrum.cameraX, frustrum.cameraY, frustrum.cameraZ)) < key) {
                 drawList.set(j+1, drawList.get(j));
                 j = j - 1;
             }
@@ -270,26 +313,8 @@ public class Space extends Canvas implements MouseMotionListener, MouseWheelList
 		double movementX = (mouseDragTempX - point.x);
 		double movementY = (mouseDragTempY - point.y);
 
-		yaw -= (movementX/VIEW_WIDTH);
-		pitch -= (movementY/VIEW_HEIGHT);
-		
-		if (pitch <= -Math.PI/2) {
-			pitch = -Math.PI/2 + 0.01;
-		} 
-		
-		if (pitch >= Math.PI/2) {
-			pitch = Math.PI/2 - 0.01;
-		}
-		
-		if (yaw >= 2 * Math.PI) {
-			yaw = 0;
-		}
-		
-		if (yaw <= -2 * Math.PI) {
-			yaw = 0;
-		}
-		
-		YPToLU();
+		yaw -= Math.toDegrees(movementX/VIEW_WIDTH);
+		pitch -= Math.toDegrees(movementY/VIEW_HEIGHT);
 		
 		mouseDragTempX = -1;
 		mouseDragTempY = -1;
@@ -304,26 +329,8 @@ public class Space extends Canvas implements MouseMotionListener, MouseWheelList
 			double movementX = (mouseDragTempX - point.x);
 			double movementY = (mouseDragTempY - point.y);
 
-			yaw -= (movementX/VIEW_WIDTH);
-			pitch -= (movementY/VIEW_HEIGHT);
-			
-			if (pitch <= -Math.PI/2) {
-				pitch = -Math.PI/2 + 0.01;
-			} 
-			
-			if (pitch >= Math.PI/2) {
-				pitch = Math.PI/2 - 0.01;
-			}
-			
-			if (yaw >= 2 * Math.PI) {
-				yaw = 0;
-			}
-			
-			if (yaw <= -2 * Math.PI) {
-				yaw = 0;
-			}
-			
-			YPToLU();
+			yaw -= Math.toDegrees(movementX/VIEW_WIDTH);
+			pitch -= Math.toDegrees(movementY/VIEW_HEIGHT);
 			
 			//System.out.println(movementX + " " + movementY);
 			
@@ -333,27 +340,6 @@ public class Space extends Canvas implements MouseMotionListener, MouseWheelList
 			repaint();
 		  }
 	 }
-	
-	//https://stackoverflow.com/questions/23155514/processing-camera-frustum-and-perspective-rotations
-	public static void YPToLU() {
-		double lookX = Math.cos(pitch) * Math.cos(yaw);
-		double lookY = Math.sin(yaw);
-		double lookZ = Math.sin(pitch) * Math.cos(yaw);
-		
-		frustrum.l = new Vector3d(lookX, lookY, lookZ);
-		
-		//calculate up vector by rotating look vector -90 around vector perpendicular to look vector
-		//https://en.wikipedia.org/wiki/Rodrigues%27_rotation_formula
-		//Vector3d lookPerpendicular = new Vector3d(frustrum.l.y, -frustrum.l.x, 0);
-		//double ulAngle = Math.toRadians(-90);
-		//frustrum.u = frustrum.l.mul(Math.cos(ulAngle)).add(lookPerpendicular.cross(frustrum.l).mul(Math.sin(ulAngle)).add(lookPerpendicular.mul(lookPerpendicular.dot(frustrum.l)).mul(1-Math.cos(ulAngle))));
-		
-		frustrum.l.normalize();
-		//frustrum.u.normalize();
-		
-		frustrum.setCamDef();
-		
-	}
 	
 	public void save(PrintWriter save) {
 		//simulation time
