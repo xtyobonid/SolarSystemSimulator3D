@@ -108,7 +108,8 @@ public class RingSystem {
 	    if (sun == null) return;
 	    double sx = sun.getX(), sy = sun.getY(), sz = sun.getZ();
 	    
-	    float illum = illuminationAtPlanet(sun, px, py, pz);
+	    float illum = Lighting.solarIllumAt(px, py, pz, sx, sy, sz);
+	    float incidence = Lighting.ringIncidence(normal.x, normal.y, normal.z, px, py, pz, sx, sy, sz);
 
 	    // Project planet center once
 	    frustum.worldToCameraSpaceDirect(px, py, pz, camTmp);
@@ -227,7 +228,7 @@ public class RingSystem {
 	            // Clamp only on the high end to avoid blowout; do NOT force a minimum (that breaks distance behavior).
 	            alphaBase = Math.max(0.0f, Math.min(1.25f, alphaBase));
 
-	            float alpha = alphaBase * shadow * illum;
+	            float alpha = alphaBase * shadow * illum * incidence;
 	            if (alpha <= 0.0f) continue;
 
 

@@ -258,31 +258,9 @@ public abstract class OrbitingBody extends Body {
         int cx = (int)Math.round(projectedPoint.x);
         int cy = (int)Math.round(projectedPoint.y);
 
-        // Base color components
-        int baseR = color.getRed();
-        int baseG = color.getGreen();
-        int baseB = color.getBlue();
-
-        // Simple ambient term
-        double ambient = 0.0;
-
         final int SEGMENTS = 128; // 24/48/64 - tune. Higher = nicer, slower.
-
-        // --- Sun distance falloff (inverse square) ---
-        final double AU_KM = 149_597_870.7;
-        final double AU_IN_UNITS = AU_KM / Space.SCALE_KM_PER_UNIT;
-
-        // distance from this body to the star (in sim units)
-        double dsx = star.x - x;
-        double dsy = star.y - y;
-        double dsz = star.z - z;
-        double dSun = Math.sqrt(dsx*dsx + dsy*dsy + dsz*dsz);
-
-        // scale relative to 1 AU
-        double sunScale = (AU_IN_UNITS * AU_IN_UNITS) / (dSun * dSun + 1e-12);
-
-        // Clamp for aesthetics / exposure control (tune these)
-        sunScale = Math.max(0.1, Math.min(1.0, sunScale));
+        
+        float solar = Lighting.solarIllumAt(x, y, z, star.getX(), star.getY(), star.getZ());
 
         double fovRad = Math.toRadians(frustum.fov);
         double nearHalfH = frustum.near * java.lang.Math.tan(fovRad * 0.5);
@@ -367,10 +345,7 @@ public abstract class OrbitingBody extends Body {
                 double lambert = nx*lightDirCam.x + ny*lightDirCam.y + nz*lightDirCam.z;
                 lambert = java.lang.Math.max(0.0, lambert);
 
-
-                double diffuse = (1.0 - ambient) * lambert * sunScale;
-                double intensity = ambient + diffuse;
-                intensity = Math.min(1.0, Math.max(0.0, intensity));
+                double intensity = Lighting.planetIntensity((float)lambert, solar);
 
                 int idx = (int)(intensity * 255.0 + 0.5);
                 g2.setColor(getShadedColor(idx));
