@@ -195,7 +195,7 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 		Graphics2D gtb = back.createGraphics();
 		
 		gtb.setColor(Color.BLACK);
-		gtb.fillRect(0,0,VIEW_WIDTH * 2,VIEW_HEIGHT * 2);
+		gtb.fillRect(0,0,VIEW_WIDTH,VIEW_HEIGHT);
 		
 		//add all bodies to list, sort by distance to camera, draw closest to camera first
 		ArrayList<Body> drawList = new ArrayList<Body>();

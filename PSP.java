@@ -31,8 +31,9 @@ import javax.swing.JOptionPane;
 
 public class PSP extends JFrame implements ActionListener, ChangeListener {
 	
-	public static final int VIEW_WIDTH = 2560;
-	public static final int VIEW_HEIGHT = 1440;
+	private static java.awt.Dimension scr = java.awt.Toolkit.getDefaultToolkit().getScreenSize();
+	public static final int VIEW_WIDTH = scr.width;
+	public static final int VIEW_HEIGHT = scr.height;
 	public static final int ACTUAL_WIDTH = 80000000;
 	public static final int ACTUAL_HEIGHT = 80000000;
 	public static final double SUN_RADIUS = 6963.4;
