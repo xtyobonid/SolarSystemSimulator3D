@@ -224,14 +224,14 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	    gtb.setColor(Color.WHITE);
 	    int hudY = 20;
 
-	    double speed = baseSpeed * java.lang.Math.pow(2.0, speedLevel);
+	    double speed = baseSpeed * java.lang.Math.pow(2.0, speedLevel) * SCALE_KM_PER_UNIT;
 	    double simSecondsPerSecond = displaySpeed; // because simTime += realTime * displaySpeed
 	    String simSpeedStr = formatSimSpeed(simSecondsPerSecond);
 	    
 	    gtb.drawString("Sim Speed: " + simSpeedStr, 10, hudY);
 	    hudY += 15;
 	    gtb.drawString(
-	    	    String.format("Speed: base * 2^%d  (%.3g units/s)", speedLevel, speed),
+	    	    String.format("Speed: base * 2^%d  (%.3g km/s)", speedLevel, speed),
 	    	    10, hudY
 	    	);
 	    hudY += 15;
@@ -786,42 +786,73 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 		    }
 
 		    if ("Uranus".equalsIgnoreCase(n)) {
-		        double innerKm   = 38_000.0;
-		        double outerKm   = 51_000.0;
-		        double innerUnits = innerKm / Space.SCALE_KM_PER_UNIT;
-		        double outerUnits = outerKm / Space.SCALE_KM_PER_UNIT;
+		        Vector3d uranusNormal = ringNormalFromPoleRADec(257.311, -15.175);
 
-		        Vector3d uranusNormal  = ringNormalFromPoleRADec(257.311, -15.175);
+		        RingSystem uranusRings = new RingSystem(p, -2.5e-5, uranusNormal);
 
-		        RingSystem uranusRings = new RingSystem(
-		                p,
-		                innerUnits,
-		                outerUnits,
-		                3000,
-		                new Color(190, 200, 210),
-		                -2.5e-5,
-		                uranusNormal
-		        );
+		        // Colors: Uranus rings are dark/neutral; epsilon is the standout brighter ring.
+		        Color faint = new Color(140, 145, 150);
+		        Color mid   = new Color(160, 165, 170);
+		        Color bright= new Color(190, 195, 200);
+
+		        // Zeta (1986 U2R): 39,600 km, width ~3,500 km (+ inward extension noted by USGS)
+		        // We'll model as a range to capture the "broad dusty" nature.
+		        // USGS notes "+ 5,000 km extension inwards" :contentReference[oaicite:3]{index=3}
+		        addRingRangeKm(uranusRings, 32_850, 41_350, 2200, faint, 0.08f);
+
+		        // 6, 5, 4: very narrow (often invisible unless you use MIN_VISUAL_RING_WIDTH_KM) :contentReference[oaicite:4]{index=4}
+		        addRingletCenterWidthKm(uranusRings, 41_840, 2.0, 900,  faint, 0.18f);
+		        addRingletCenterWidthKm(uranusRings, 42_230, 2.5, 1000, faint, 0.20f);
+		        addRingletCenterWidthKm(uranusRings, 42_580, 2.5, 1000, faint, 0.20f);
+
+		        // Alpha / Beta: 7–12 km wide :contentReference[oaicite:5]{index=5}
+		        addRingletCenterWidthKm(uranusRings, 44_720, 10.0, 1600, mid, 0.35f);
+		        addRingletCenterWidthKm(uranusRings, 45_670, 10.0, 1800, mid, 0.35f);
+
+		        // Eta / Gamma / Delta :contentReference[oaicite:6]{index=6}
+		        addRingletCenterWidthKm(uranusRings, 47_190, 2.0,  900,  faint, 0.22f);
+		        addRingletCenterWidthKm(uranusRings, 47_630, 3.0,  1100, mid,   0.28f);
+		        addRingletCenterWidthKm(uranusRings, 48_290, 6.0,  1400, mid,   0.30f);
+
+		        // Lambda (1986 U1R) :contentReference[oaicite:7]{index=7}
+		        addRingletCenterWidthKm(uranusRings, 50_020, 1.5,  700,  faint, 0.16f);
+
+		        // Epsilon: 20–100 km wide; this is the dominant bright ring :contentReference[oaicite:8]{index=8}
+		        // Use a representative width (e.g., 60 km) — still "accurate-scale" within the given range.
+		        addRingletCenterWidthKm(uranusRings, 51_140, 60.0, 2600, bright, 0.70f);
+
+		        // Outer rings Nu and Mu are broad/faint :contentReference[oaicite:9]{index=9}
+		        addRingletCenterWidthKm(uranusRings, 67_300, 3_800, 1800, faint, 0.06f);
+		        addRingletCenterWidthKm(uranusRings, 97_700, 17_000, 2200, faint, 0.04f);
+
 		        p.setRings(uranusRings);
 		    }
 
+
 		    if ("Neptune".equalsIgnoreCase(n)) {
-		        double innerKm   = 42_000.0;
-		        double outerKm   = 63_000.0;
-		        double innerUnits = innerKm / Space.SCALE_KM_PER_UNIT;
-		        double outerUnits = outerKm / Space.SCALE_KM_PER_UNIT;
+		        Vector3d neptuneNormal = ringNormalFromPoleRADec(299.36, 43.46);
 
-		        Vector3d neptuneNormal = ringNormalFromPoleRADec(299.36,  43.46);
+		        RingSystem neptuneRings = new RingSystem(p, -2.5e-5, neptuneNormal);
 
-		        RingSystem neptuneRings = new RingSystem(
-		                p,
-		                innerUnits,
-		                outerUnits,
-		                1000,
-		                new Color(180, 190, 200),
-		                -2.5e-5,
-		                neptuneNormal
-		        );
+		        // Neptune rings are generally faint; often described as dusty and likely somewhat reddish/neutral. :contentReference[oaicite:11]{index=11}
+		        Color faint = new Color(135, 140, 145);
+		        Color mid   = new Color(160, 165, 170);
+
+		        // Galle ring: broad, ~40,900–42,900 km from center :contentReference[oaicite:12]{index=12}
+		        addRingRangeKm(neptuneRings, 40_900, 42_900, 2600, faint, 0.08f);
+
+		        // Le Verrier ring: centered ~53,200 km, narrow (≈113 km) :contentReference[oaicite:13]{index=13}
+		        addRingletCenterWidthKm(neptuneRings, 53_200, 113.0, 1200, mid, 0.22f);
+
+		        // Lassell “plateau”: broad ~53,200–57,200 km :contentReference[oaicite:14]{index=14}
+		        addRingRangeKm(neptuneRings, 53_200, 57_200, 2000, faint, 0.06f);
+
+		        // Arago ringlet near ~57,200 km (<100 km wide) :contentReference[oaicite:15]{index=15}
+		        addRingletCenterWidthKm(neptuneRings, 57_200, 100.0, 900, faint, 0.12f);
+
+		        // Adams ring: ~62,932 km, narrow (≈15–50 km) and hosts arcs (not modeled here) :contentReference[oaicite:16]{index=16}
+		        addRingletCenterWidthKm(neptuneRings, 62_932, 50.0, 1400, mid, 0.26f);
+
 		        p.setRings(neptuneRings);
 		    }
 		}
@@ -856,6 +887,35 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 		load.close();
 		
 		lastCurrentTime = System.nanoTime();
+	}
+	
+	private static final double MIN_VISUAL_RING_WIDTH_KM = 120.0;
+
+	private static void addRingletCenterWidthKm(
+	        RingSystem rs,
+	        double centerKm,
+	        double widthKm,
+	        int particles,
+	        Color color,
+	        float opticalDepth
+	) {
+	    double w = Math.max(widthKm, MIN_VISUAL_RING_WIDTH_KM);
+	    double innerUnits = (centerKm - 0.5 * w) / Space.SCALE_KM_PER_UNIT;
+	    double outerUnits = (centerKm + 0.5 * w) / Space.SCALE_KM_PER_UNIT;
+	    rs.addBand(new RingSystem.RingBand(innerUnits, outerUnits, particles, color, opticalDepth));
+	}
+
+	private static void addRingRangeKm(
+	        RingSystem rs,
+	        double innerKm,
+	        double outerKm,
+	        int particles,
+	        Color color,
+	        float opticalDepth
+	) {
+	    double innerUnits = innerKm / Space.SCALE_KM_PER_UNIT;
+	    double outerUnits = outerKm / Space.SCALE_KM_PER_UNIT;
+	    rs.addBand(new RingSystem.RingBand(innerUnits, outerUnits, particles, color, opticalDepth));
 	}
 	
 	private static Vector3d ringNormalFromPoleRADec(double raDeg, double decDeg) {
