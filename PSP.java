@@ -31,11 +31,11 @@ import javax.swing.JOptionPane;
 
 public class PSP extends JFrame implements ActionListener, ChangeListener {
 	
-	public static final int VIEW_WIDTH = 1920;
-	public static final int VIEW_HEIGHT = 1080;
+	public static final int VIEW_WIDTH = 2560;
+	public static final int VIEW_HEIGHT = 1440;
 	public static final int ACTUAL_WIDTH = 80000000;
 	public static final int ACTUAL_HEIGHT = 80000000;
-	public static final double SUN_RADIUS = 4326.9;
+	public static final double SUN_RADIUS = 6963.4;
 	public static final int DISPLAY_MODIFIER = 23;
 	
 	private static JButton addPlanet;
@@ -273,9 +273,9 @@ public class PSP extends JFrame implements ActionListener, ChangeListener {
         		if (!colorPicked) {
         			int ind = pColor.getSelectedIndex();
         			Color[] cs = {Color.BLUE, Color.CYAN, Color.DARK_GRAY, Color.GRAY, Color.GREEN, Color.LIGHT_GRAY, Color.MAGENTA, Color.ORANGE, Color.PINK, Color.RED, Color.WHITE, Color.YELLOW, Color.BLACK};
-        			planets.add(new Planet(pNameS, pRadiusN, startAngle, orbitD, star, orbitS, cs[ind]));
+//        			planets.add(new Planet(pNameS, pRadiusN, startAngle, orbitD, star, orbitS, cs[ind]));
         		} else {
-        			planets.add(new Planet(pNameS, pRadiusN, startAngle, orbitD, star, orbitS, tempColorPicked));
+//        			planets.add(new Planet(pNameS, pRadiusN, startAngle, orbitD, star, orbitS, tempColorPicked));
         			colorPicked = false;
         		}
 	        	
@@ -293,7 +293,7 @@ public class PSP extends JFrame implements ActionListener, ChangeListener {
         	double orbitS = Double.parseDouble(mOrbitSpeed.getText());
         	String mNameS = mName.getText();
         	String pNameS = getPName.getText();
-        	Planet p = new Planet();
+        	Planet p = new Planet(star);
         	boolean finished = false;
         	for (int i = 0; i < planets.size(); i++) {
 	       		if (planets.get(i).getName().equals(pNameS)) {
@@ -319,9 +319,9 @@ public class PSP extends JFrame implements ActionListener, ChangeListener {
 		        	if (!colorPicked) {
 			        	int ind = mColor.getSelectedIndex();
 			        	Color[] cs = {Color.BLUE, Color.CYAN, Color.DARK_GRAY, Color.GRAY, Color.GREEN, Color.LIGHT_GRAY, Color.MAGENTA, Color.ORANGE, Color.PINK, Color.RED, Color.WHITE, Color.YELLOW, Color.BLACK};
-			        	moons.add(new Moon(mRadiusN, orbitD, p, mNameS, cs[ind], orbitS));
+//			        	moons.add(new Moon(mRadiusN, orbitD, p, mNameS, cs[ind], orbitS));
 		        	} else {
-		        		moons.add(new Moon(mRadiusN, orbitD, p, mNameS, tempColorPicked, orbitS));
+//		        		moons.add(new Moon(mRadiusN, orbitD, p, mNameS, tempColorPicked, orbitS));
 	        			colorPicked = false;
 	        		}
 		        	stateChanged(new ChangeEvent(displaySpeedSlider));
@@ -388,30 +388,30 @@ public class PSP extends JFrame implements ActionListener, ChangeListener {
 			}
      	} else if ("load".equals(e.getActionCommand())) {
      		try {
-				Scanner load = new Scanner(new File("systemSave.txt"));
+				Scanner load = new Scanner(new File("solar_system_elliptical.save"));
 				tg.load(load);
 			} catch (FileNotFoundException e1) {
 				e1.printStackTrace();
 			}
      	} else if ("lock".equals(e.getActionCommand())) {
-     		tg.locked = true;
-     		tg.lockedBody = star;
+     		Body lockedBody = star;
      		String bodyName = lockField.getText();
      		
 			for (int i = 0; i < planets.size(); i++) {
 				if (planets.get(i).getName().equals(bodyName)) {
-					tg.lockedBody = planets.get(i);
+					lockedBody = planets.get(i);
 				}
 			}
 			
 			for (int i = 0; i < moons.size(); i++) {
 				if (moons.get(i).getName().equals(bodyName)) {
-					tg.lockedBody = moons.get(i);
+					lockedBody = moons.get(i);
 				}
 			}
+			
+			tg.lockToBody(lockedBody);
      	} else if ("unlock".equals(e.getActionCommand())) {
-     		tg.locked = false;
-     		tg.lockedBody = star;
+     		tg.unlockBody();
      	} else if ("mChooseColor".equals(e.getActionCommand())) {
      		colorPicked = true;
      		tempColorPicked = JColorChooser.showDialog(this, "Colors", Color.BLACK);

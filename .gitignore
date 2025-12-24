@@ -16,3 +16,10 @@
 /Space.class
 /Star.class
 /Vector3d.class
+/ProjectionUtil.class
+/Frustum.class
+/OrbitingBody.class
+/Asteroid.class
+/RingSystem.class
+/RingSystem$Particle.class
+/RingSystem$RingBand.class
