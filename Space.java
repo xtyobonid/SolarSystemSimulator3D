@@ -42,6 +42,8 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	private boolean moveUp       = false;
 	private boolean moveDown     = false;
 
+	private boolean keyLeft, keyRight, keyUp, keyDown;
+
 	// speed control
 	private int speedLevel = 0;          // 0 = baseSpeed, negative = slower, positive = faster
 	private final int minSpeedLevel = -4;
@@ -126,7 +128,11 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 
 		// In the plane, to the left of the star, looking right at it
 		frustrum.setCameraPosition(star.getX(), star.getY(), star.getZ() - camDist);
-				
+
+		setFocusable(true);
+		setFocusTraversalKeysEnabled(true);
+		requestFocusInWindow();
+
 		this.addKeyListener(this);
 		this.addMouseListener(this);
 		this.addMouseMotionListener(this);
@@ -525,13 +531,33 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	    }
 
 	    // 2) No movement input? Nothing more to do.
-	    if (!moveForward && !moveBackward &&
-	        !moveLeft && !moveRight &&
-	        !moveUp && !moveDown) {
-	        return;
-	    }
 
-	    // 3) Compute camera basis once
+		if (!moveForward && !moveBackward &&
+				!moveLeft && !moveRight &&
+				!moveUp && !moveDown &&
+				!keyLeft && !keyRight &&
+				!keyUp && !keyDown) {
+			return;
+		}
+
+		// dtSeconds = time since last frame in seconds
+		double ROT_DEG_PER_SEC = 45.0; // tune
+
+		double yawDelta   = 0.0;
+		double pitchDelta = 0.0;
+
+		if (keyLeft)  yawDelta   -= ROT_DEG_PER_SEC * dtSeconds;
+		if (keyRight) yawDelta   += ROT_DEG_PER_SEC * dtSeconds;
+		if (keyUp)    pitchDelta -= ROT_DEG_PER_SEC * dtSeconds;
+		if (keyDown)  pitchDelta += ROT_DEG_PER_SEC * dtSeconds;
+
+		// Apply (use whatever your code stores yaw/pitch in)
+		yaw   += yawDelta;
+		pitch += pitchDelta;
+		// Clamp pitch so you don’t flip
+		pitch = Math.max(-89.0, Math.min(89.0, pitch));
+
+		// 3) Compute camera basis once
 	    double[] forward = new double[3];
 	    double[] right   = new double[3];
 	    double[] up      = new double[3]; // not used directly, but we compute it anyway
@@ -651,6 +677,10 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
   	        case KeyEvent.VK_S: moveBackward = false; break;
   	        case KeyEvent.VK_A: moveLeft     = false; break;
   	        case KeyEvent.VK_D: moveRight    = false; break;
+			case KeyEvent.VK_LEFT:  keyLeft  = false; break;
+			case KeyEvent.VK_RIGHT: keyRight = false; break;
+			case KeyEvent.VK_UP:    keyUp    = false; break;
+			case KeyEvent.VK_DOWN:  keyDown  = false; break;
   	        case KeyEvent.VK_SPACE: moveUp       = false; break;
   	        case KeyEvent.VK_CONTROL: moveDown     = false; break;
   	    }
@@ -663,6 +693,10 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	        case KeyEvent.VK_S: moveBackward = true; break;
 	        case KeyEvent.VK_A: moveLeft     = true; break;
 	        case KeyEvent.VK_D: moveRight    = true; break;
+			case KeyEvent.VK_LEFT:  keyLeft  = true; break;
+			case KeyEvent.VK_RIGHT: keyRight = true; break;
+			case KeyEvent.VK_UP:    keyUp    = true; break;
+			case KeyEvent.VK_DOWN:  keyDown  = true; break;
 	        case KeyEvent.VK_SPACE: moveUp       = true; break;
 	        case KeyEvent.VK_CONTROL: moveDown     = true; break;
 	        case KeyEvent.VK_Q:
@@ -684,6 +718,8 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	
 	@Override
 	public void mousePressed(MouseEvent e) {
+		requestFocusInWindow();
+
 	    Point point = e.getPoint();
 	    mouseDragTempX = point.x;
 	    mouseDragTempY = point.y;
