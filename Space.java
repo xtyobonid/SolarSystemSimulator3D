@@ -765,166 +765,206 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	        repaint();
 	    }
 	}
-	
-	public void save(PrintWriter save) {
-		save.println(simulationTime);
-		save.println(ps.size());
-		for(int i = 0; i < ps.size(); i++) {
-//			save.println(ps.get(i).save());
+
+	public void save(PrintWriter out) {
+		out.println(simulationTime);
+
+		// --- Planets ---
+		out.println(ps.size());
+		for (Planet p : ps) out.println(p.save());
+
+		// --- Rings ---
+		int ringCount = 0;
+		for (Planet p : ps) {
+			RingSystem rs = p.getRings();
+			if (rs != null && !rs.getBands().isEmpty()) ringCount++;
 		}
-		save.println(ss.size());
-		for(int i = 0; i < ss.size(); i++) {
-//			save.println(ss.get(i).save());
+		out.println(ringCount);
+
+		for (Planet p : ps) {
+			RingSystem rs = p.getRings();
+			if (rs == null || rs.getBands().isEmpty()) continue;
+
+			Vector3d n = rs.getNormal();
+
+			// Header format (one line):
+			// planetName angularSpeed nx ny nz shadowBrightness shadowSoftness bandCount
+			out.println(
+					p.getName() + " " +
+							rs.getAngularSpeed() + " " +
+							n.x + " " + n.y + " " + n.z + " " +
+							rs.ringShadowBrightness + " " +
+							rs.ringShadowSoftness + " " +
+							rs.getBands().size()
+			);
+
+			// Band format (one line each):
+			// innerRadius outerRadius particleCount colorRGB opticalDepth
+			for (RingSystem.RingBand b : rs.getBands()) {
+				out.println(
+						b.innerRadius + " " +
+								b.outerRadius + " " +
+								b.particleCount + " " +
+								b.color.getRGB() + " " +
+								b.opticalDepth
+				);
+			}
 		}
-		
-		save.close();
+
+		// --- Moons ---
+		out.println(ss.size());
+		for (Moon m : ss) {
+			// append host planet name as LAST TOKEN (your current format)
+			out.println(m.save() + " " + m.getPlanetName());
+		}
+
+		// --- Asteroids ---
+		out.println(asteroids.size());
+		for (Asteroid a : asteroids) out.println(a.save());
+
+		out.close();
 	}
-	
+
 	public void load(Scanner load) {
-		simulationTime = Long.parseLong(load.next());
-		load.nextLine();
-		load.nextLine();
-		
-		int numPlanets = Integer.parseInt(load.next());
-		load.nextLine();
-		
+		ps.clear();
+		ss.clear();
+		asteroids.clear();
+
+		String line;
+
+		// --- simulation time (first data line) ---
+		line = nextDataLine(load);
+		if (line == null) return;
+		simulationTime = Long.parseLong(line);
+
+		// --- planets ---
+		line = nextDataLine(load);
+		if (line == null) return;
+		int numPlanets = Integer.parseInt(line);
+
 		for (int i = 0; i < numPlanets; i++) {
-			String line = load.nextLine();
-			Planet p = new Planet(line, star, displaySpeed);
+			String pLine = nextDataLine(load);     // <= important change
+			if (pLine == null) return;
+			Planet p = new Planet(pLine, star, displaySpeed);
 			ps.add(p);
 		}
-		
-		// Rings
-		// Ratio of particles for Saturn : Uranus : Neptune should be 1 : 0.3 : 0.1
-		for (Planet p : ps) {
-		    String n = p.getName();
 
-		    if ("Saturn".equalsIgnoreCase(n)) {
-		        double km = 1.0 / Space.SCALE_KM_PER_UNIT;
+		// --- Rings (loaded from file) ---
+		line = nextDataLine(load);
+		if (line == null) return;
+		int numRingSystems = Integer.parseInt(line);
 
-		        Vector3d saturnNormal = ringNormalFromPoleRADec(40.589, 83.537);
+		// map planet names
+		java.util.HashMap<String, Planet> planetByName = new java.util.HashMap<>();
+		for (Planet p : ps) planetByName.put(p.getName(), p);
 
-		        RingSystem saturnRings = new RingSystem(p, -2.0e-5, saturnNormal );
+		for (int r = 0; r < numRingSystems; r++) {
+			String header = nextDataLine(load);
+			if (header == null) return;
 
-		        // C ring (dimmer)
-		        saturnRings.addBand(new RingSystem.RingBand(74_658 * km, 92_000 * km, 3000, new Color(190,180,165), 0.35f));
+			java.util.Scanner hs = new java.util.Scanner(header);
 
-		        // B ring (brightest)
-		        saturnRings.addBand(new RingSystem.RingBand(92_000 * km, 117_580 * km, 5000, new Color(225,215,195), 0.75f));
+			String planetName = hs.next();
+			double angularSpeed = hs.nextDouble();
 
-		        // Cassini division (very sparse / dark)
-		        saturnRings.addBand(new RingSystem.RingBand(117_580 * km, 122_170 * km, 800, new Color(170,165,155), 0.10f));
+			double nx = hs.nextDouble();
+			double ny = hs.nextDouble();
+			double nz = hs.nextDouble();
 
-		        // A ring (bright)
-		        saturnRings.addBand(new RingSystem.RingBand(122_170 * km, 136_775 * km, 4000, new Color(220,210,190), 0.60f));
+			float shadowBrightness = hs.nextFloat();
+			double shadowSoftness = hs.nextDouble();
 
-		        p.setRings(saturnRings);
-		    }
+			int bandCount = hs.nextInt();
+			hs.close();
 
-		    if ("Uranus".equalsIgnoreCase(n)) {
-		        Vector3d uranusNormal = ringNormalFromPoleRADec(257.311, -15.175);
+			Planet planet = planetByName.get(planetName);
+			// Always consume the band lines even if planet is missing
+			if (planet == null) {
+				for (int i = 0; i < bandCount; i++) nextDataLine(load);
+				continue;
+			}
 
-		        RingSystem uranusRings = new RingSystem(p, -2.5e-5, uranusNormal);
+			RingSystem rs = new RingSystem(planet, angularSpeed, new Vector3d(nx, ny, nz));
+			rs.ringShadowBrightness = shadowBrightness;
+			rs.ringShadowSoftness = shadowSoftness;
 
-		        // Colors: Uranus rings are dark/neutral; epsilon is the standout brighter ring.
-		        Color faint = new Color(140, 145, 150);
-		        Color mid   = new Color(160, 165, 170);
-		        Color bright= new Color(190, 195, 200);
+			for (int i = 0; i < bandCount; i++) {
+				String bandLine = nextDataLine(load);
+				if (bandLine == null) return;
 
-		        // Zeta (1986 U2R): 39,600 km, width ~3,500 km (+ inward extension noted by USGS)
-		        // We'll model as a range to capture the "broad dusty" nature.
-		        // USGS notes "+ 5,000 km extension inwards" :contentReference[oaicite:3]{index=3}
-		        addRingRangeKm(uranusRings, 32_850, 41_350, 2200, faint, 0.08f);
+				java.util.Scanner bs = new java.util.Scanner(bandLine);
+				double inner = bs.nextDouble();
+				double outer = bs.nextDouble();
+				int particleCount = bs.nextInt();
+				int rgb = bs.nextInt();
+				float opticalDepth = bs.nextFloat();
+				bs.close();
 
-		        // 6, 5, 4: very narrow (often invisible unless you use MIN_VISUAL_RING_WIDTH_KM) :contentReference[oaicite:4]{index=4}
-		        addRingletCenterWidthKm(uranusRings, 41_840, 2.0, 900,  faint, 0.18f);
-		        addRingletCenterWidthKm(uranusRings, 42_230, 2.5, 1000, faint, 0.20f);
-		        addRingletCenterWidthKm(uranusRings, 42_580, 2.5, 1000, faint, 0.20f);
+				rs.addBand(new RingSystem.RingBand(
+						inner, outer, particleCount,
+						new java.awt.Color(rgb, true),
+						opticalDepth
+				));
+			}
 
-		        // Alpha / Beta: 7–12 km wide :contentReference[oaicite:5]{index=5}
-		        addRingletCenterWidthKm(uranusRings, 44_720, 10.0, 1600, mid, 0.35f);
-		        addRingletCenterWidthKm(uranusRings, 45_670, 10.0, 1800, mid, 0.35f);
-
-		        // Eta / Gamma / Delta :contentReference[oaicite:6]{index=6}
-		        addRingletCenterWidthKm(uranusRings, 47_190, 2.0,  900,  faint, 0.22f);
-		        addRingletCenterWidthKm(uranusRings, 47_630, 3.0,  1100, mid,   0.28f);
-		        addRingletCenterWidthKm(uranusRings, 48_290, 6.0,  1400, mid,   0.30f);
-
-		        // Lambda (1986 U1R) :contentReference[oaicite:7]{index=7}
-		        addRingletCenterWidthKm(uranusRings, 50_020, 1.5,  700,  faint, 0.16f);
-
-		        // Epsilon: 20–100 km wide; this is the dominant bright ring :contentReference[oaicite:8]{index=8}
-		        // Use a representative width (e.g., 60 km) — still "accurate-scale" within the given range.
-		        addRingletCenterWidthKm(uranusRings, 51_140, 60.0, 2600, bright, 0.70f);
-
-		        // Outer rings Nu and Mu are broad/faint :contentReference[oaicite:9]{index=9}
-		        addRingletCenterWidthKm(uranusRings, 67_300, 3_800, 1800, faint, 0.06f);
-		        addRingletCenterWidthKm(uranusRings, 97_700, 17_000, 2200, faint, 0.04f);
-
-		        p.setRings(uranusRings);
-		    }
-
-
-		    if ("Neptune".equalsIgnoreCase(n)) {
-		        Vector3d neptuneNormal = ringNormalFromPoleRADec(299.36, 43.46);
-
-		        RingSystem neptuneRings = new RingSystem(p, -2.5e-5, neptuneNormal);
-
-		        // Neptune rings are generally faint; often described as dusty and likely somewhat reddish/neutral. :contentReference[oaicite:11]{index=11}
-		        Color faint = new Color(135, 140, 145);
-		        Color mid   = new Color(160, 165, 170);
-
-		        // Galle ring: broad, ~40,900–42,900 km from center :contentReference[oaicite:12]{index=12}
-		        addRingRangeKm(neptuneRings, 40_900, 42_900, 2600, faint, 0.08f);
-
-		        // Le Verrier ring: centered ~53,200 km, narrow (≈113 km) :contentReference[oaicite:13]{index=13}
-		        addRingletCenterWidthKm(neptuneRings, 53_200, 113.0, 1200, mid, 0.22f);
-
-		        // Lassell “plateau”: broad ~53,200–57,200 km :contentReference[oaicite:14]{index=14}
-		        addRingRangeKm(neptuneRings, 53_200, 57_200, 2000, faint, 0.06f);
-
-		        // Arago ringlet near ~57,200 km (<100 km wide) :contentReference[oaicite:15]{index=15}
-		        addRingletCenterWidthKm(neptuneRings, 57_200, 100.0, 900, faint, 0.12f);
-
-		        // Adams ring: ~62,932 km, narrow (≈15–50 km) and hosts arcs (not modeled here) :contentReference[oaicite:16]{index=16}
-		        addRingletCenterWidthKm(neptuneRings, 62_932, 50.0, 1400, mid, 0.26f);
-
-		        p.setRings(neptuneRings);
-		    }
+			planet.setRings(rs);
 		}
-		
-		int numMoons = Integer.parseInt(load.next());
-		load.nextLine();
-		
+
+		// --- moons ---
+		line = nextDataLine(load);
+		if (line == null) return;
+		int numMoons = Integer.parseInt(line);
+
 		for (int i = 0; i < numMoons; i++) {
-			String line = load.nextLine();
-			String planetName = line.substring(line.lastIndexOf(" ") + 1);
-			
+			String mLine = nextDataLine(load);     // <= important change
+			if (mLine == null) return;
+
+			String planetName = mLine.substring(mLine.lastIndexOf(" ") + 1);
+
 			Planet p = ps.get(0);
 			for (int j = 1; j < ps.size(); j++) {
 				if (ps.get(j).getName().equals(planetName)) {
 					p = ps.get(j);
 				}
 			}
-			
-			Moon m = new Moon(line.substring(0, line.lastIndexOf(" ")), p, displaySpeed);
+
+			Moon m = new Moon(mLine.substring(0, mLine.lastIndexOf(" ")), p, displaySpeed);
 			ss.add(m);
 		}
-		
-		int numAsteroids = Integer.parseInt(load.next());
-		load.nextLine();
+
+		// --- asteroids ---
+		line = nextDataLine(load);
+		if (line == null) return;
+		int numAsteroids = Integer.parseInt(line);
 
 		for (int i = 0; i < numAsteroids; i++) {
-		    String line = load.nextLine();
-		    Asteroid a = new Asteroid(line, star, displaySpeed);
-		    asteroids.add(a);
+			String aLine = nextDataLine(load);     // <= important change
+			if (aLine == null) return;
+
+			Asteroid a = new Asteroid(aLine, star, displaySpeed);
+			asteroids.add(a);
 		}
-		
+
 		load.close();
-		
 		lastCurrentTime = System.nanoTime();
 	}
-	
+
+	// Reads the next meaningful line:
+	// - skips blank lines
+	// - skips comment lines starting with '#'
+	private static String nextDataLine(Scanner sc) {
+		while (sc.hasNextLine()) {
+			String line = sc.nextLine();
+			if (line == null) return null;
+			line = line.trim();
+			if (line.isEmpty()) continue;
+			if (line.startsWith("#")) continue;
+			return line;
+		}
+		return null;
+	}
+
+
 	private static final double MIN_VISUAL_RING_WIDTH_KM = 120.0;
 
 	private static void addRingletCenterWidthKm(

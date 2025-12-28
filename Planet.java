@@ -59,58 +59,31 @@ public class Planet extends OrbitingBody {
         }
     }
 	
-//	public Planet (String name2, double radius2, double startAngle2, double orbitD2, Star star2, double orbitS2, Color color2) {
-//		x = 0;
-//	    y = 0;
-//	    z = 0;
-//	    
-//		displaySpeed = 1;
-//		startAngle = startAngle2;
-//		name = name2;
-//		star = star2;
-//		radius = radius2;
-//		orbitD = orbitD2;
-//		
-//		//calculate orbital speed, given days
-//		//angle = 360 - ()(nanoseconds)
-//		//y = orbitS * X + 360
-//		double nanoseconds = orbitS2 * 8.64 * java.lang.Math.pow(10, 13);
-//		
-//		orbitS = (-360)/nanoseconds;
-//		orbitA = 360;
-//		color = color2;
-//		type = "planet";
-//	}
-	
 	public Planet (Star star) {
 		super(star);
 	}
-	
-//	public String save() {
-//		String ret = "";
-//		
-//		ret += x + " ";
-//		ret += z + " ";
-//		ret += radius + " ";
-//		ret += color.getRed() + " ";
-//		ret += color.getGreen() + " ";
-//		ret += color.getBlue() + " ";
-//		ret += orbitD + " ";
-//		ret += startAngle + " ";
-//		ret += orbitS + " ";
-//		ret += name + " ";
-//		
-//		return ret;
-//	}
-	
-//	public String getType() {
-//		return type;
-//	}
-	
+
+	public String save() {
+		double periodDays = periodSeconds / 86400.0;
+
+		return x + " " + y + " " + z + " " +
+				radius + " " +
+				color.getRed() + " " + color.getGreen() + " " + color.getBlue() + " " +
+				a + " " + e + " " +
+				Math.toDegrees(inclRad) + " " +
+				Math.toDegrees(omegaBigRad) + " " +
+				Math.toDegrees(omegaSmallRad) + " " +
+				Math.toDegrees(M0Rad) + " " +
+				periodDays + " " +
+				name;
+	}
+
 	public void setRings(RingSystem rings) {
         this.rings = rings;
     }
-	
+
+	public RingSystem getRings() { return this.rings; }
+
 	protected int getIconRadiusPx() {
         return ICON_RADIUS;
     }

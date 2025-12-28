@@ -45,25 +45,6 @@ public class Moon extends OrbitingBody {
         this.periodSeconds = periodDays * 86400.0;
         this.meanMotion    = (2.0 * Math.PI) / this.periodSeconds;
     }
-
-//	public Moon (double radius2, double orbitD2, Planet planet2, String name2, Color color2, double orbitS2) {
-//		x = 0;
-//		y = 0;
-//		z = 0; 
-//		
-//		displaySpeed = 1;
-//		planet = planet2;
-//		radius = radius2;
-//		orbitD = orbitD2;
-//		
-//		double nanoseconds = orbitS2 * 8.64 * java.lang.Math.pow(10, 13);
-//		orbitS = (-360)/nanoseconds;
-//		
-//		orbitA = 360;
-//		name = name2;
-//		color = color2;
-//		type = "moon";
-//	}
 	
 	public String getPlanetName() {
 		return planet.getName();
@@ -72,26 +53,23 @@ public class Moon extends OrbitingBody {
 	public Planet getPlanet() {
 		return planet;
 	}
-	
-//	public String save() { 
-//		String ret = "";
-//		
-//		ret += x + " ";
-//		ret += y + " ";
-//		ret += radius + " ";
-//		ret += color.getRed() + " ";
-//		ret += color.getGreen() + " ";
-//		ret += color.getBlue() + " ";
-//		ret += orbitD + " ";
-//		ret += startAngle + " ";
-//		ret += orbitS + " ";
-//		ret += name + " ";
-//		ret += planet.getName();
-//		
-//		return ret;
-//	}
-	
-	protected int getIconRadiusPx() {
+
+    public String save() {
+        double periodDays = periodSeconds / 86400.0;
+
+        return x + " " + y + " " + z + " " +
+                radius + " " +
+                color.getRed() + " " + color.getGreen() + " " + color.getBlue() + " " +
+                a + " " + e + " " +
+                Math.toDegrees(inclRad) + " " +
+                Math.toDegrees(omegaBigRad) + " " +
+                Math.toDegrees(omegaSmallRad) + " " +
+                Math.toDegrees(M0Rad) + " " +
+                periodDays + " " +
+                name;
+    }
+
+    protected int getIconRadiusPx() {
         return ICON_RADIUS;
     }
  }

@@ -366,7 +366,9 @@ public class RingSystem {
         return (float) w;
     }
 
+	public double getAngularSpeed() { return angularSpeed; }
 
+	public Vector3d getNormal() { return normal; }
     
     public List<RingBand> getBands() { return Collections.unmodifiableList(bands); }
 }

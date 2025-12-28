@@ -24,10 +24,7 @@ import javax.swing.AbstractButton;
 import javax.swing.JOptionPane;
 
 //To do:
-// ellipse orbits
-// fix lock onto moon
-//   !!! maybe issue with drawing is system time passes between the lock, move, and the draw
-//      perhaps solution is to save system time for the draw
+//
 
 public class PSP extends JFrame implements ActionListener, ChangeListener {
 	
@@ -389,7 +386,7 @@ public class PSP extends JFrame implements ActionListener, ChangeListener {
 			}
      	} else if ("load".equals(e.getActionCommand())) {
      		try {
-				Scanner load = new Scanner(new File("solar_system_elliptical.save"));
+				Scanner load = new Scanner(new File("systemSave.txt"));
 				tg.load(load);
 			} catch (FileNotFoundException e1) {
 				e1.printStackTrace();

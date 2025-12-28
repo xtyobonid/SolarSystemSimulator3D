@@ -41,6 +41,22 @@ public class Asteroid extends OrbitingBody {
         this.meanMotion    = (2.0 * Math.PI) / this.periodSeconds;
     }
 
+    public String save() {
+        double periodDays = periodSeconds / 86400.0;
+
+        return x + " " + y + " " + z + " " +
+                radius + " " +
+                color.getRed() + " " + color.getGreen() + " " + color.getBlue() + " " +
+                a + " " + e + " " +
+                Math.toDegrees(inclRad) + " " +
+                Math.toDegrees(omegaBigRad) + " " +
+                Math.toDegrees(omegaSmallRad) + " " +
+                Math.toDegrees(M0Rad) + " " +
+                periodDays + " " +
+                name;
+    }
+
+
     @Override
     protected int getIconRadiusPx() {
         return ASTEROID_ICON_RADIUS;
