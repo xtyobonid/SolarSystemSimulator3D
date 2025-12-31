@@ -23,7 +23,7 @@ import javax.swing.JPanel;
 import javax.swing.AbstractButton;
 import javax.swing.JOptionPane;
 
-//To do:
+// To do:
 //
 
 public class PSP extends JFrame implements ActionListener, ChangeListener {
@@ -377,21 +377,33 @@ public class PSP extends JFrame implements ActionListener, ChangeListener {
      	} else if ("pChooseColor".equals(e.getActionCommand())) {
      		colorPicked = true;
      		tempColorPicked = JColorChooser.showDialog(this, "Colors", Color.BLACK);
-     	} else if ("save".equals(e.getActionCommand())) {
-     		try {
-				PrintWriter save = new PrintWriter(new BufferedWriter(new FileWriter("systemSave.txt")));
-				tg.save(save);
-			} catch (IOException e1) {
-				e1.printStackTrace();
+		} else if ("save".equals(e.getActionCommand())) {
+			try {
+				java.nio.file.Path dir = java.nio.file.Paths.get("saves");
+				java.nio.file.Files.createDirectories(dir);
+
+				java.nio.file.Path file = dir.resolve("systemSave.txt");
+
+				try (PrintWriter out = new PrintWriter(
+						new BufferedWriter(new FileWriter(file.toFile()))
+				)) {
+					tg.save(out);
+				}
+			} catch (IOException ex) {
+				ex.printStackTrace();
 			}
-     	} else if ("load".equals(e.getActionCommand())) {
-     		try {
-				Scanner load = new Scanner(new File("systemSave.txt"));
-				tg.load(load);
-			} catch (FileNotFoundException e1) {
-				e1.printStackTrace();
+
+		} else if ("load".equals(e.getActionCommand())) {
+			try {
+				java.nio.file.Path file = java.nio.file.Paths.get("saves", "systemSave.txt");
+
+				try (Scanner in = new Scanner(file.toFile())) {
+					tg.load(in);
+				}
+			} catch (IOException ex) {
+				ex.printStackTrace();
 			}
-     	} else if ("lock".equals(e.getActionCommand())) {
+		} else if ("lock".equals(e.getActionCommand())) {
      		Body lockedBody = star;
      		String bodyName = lockField.getText();
      		

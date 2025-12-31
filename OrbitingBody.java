@@ -15,12 +15,10 @@ public abstract class OrbitingBody extends Body {
     protected double periodSeconds;
     protected double meanMotion;    // n = 2π / period
     
-    
     // Cache shaded colors to avoid allocating new Color in hot loops
     private transient int shadeBaseRGB = 0;
     private transient int shadeBaseR = 0, shadeBaseG = 0, shadeBaseB = 0;
     private transient Color[] shadeLUT = new Color[256];
-
 
     public OrbitingBody(Body parent) {
         this.parent = parent;
