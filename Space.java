@@ -94,7 +94,30 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
     private long infoHudUntilNanos = 0L;
     private static final long INFO_HUD_DURATION_NANOS = 30_000_000_000L; // 3 seconds
 
-    // if you want to convert to km in HUD:
+	// --- Orbit path rendering ---
+	public boolean showPlanetOrbits   = false;
+	public boolean showMoonOrbits     = false;
+	public boolean showAsteroidOrbits = false;
+
+	// Starfield rendering
+	private Starfield starfield;
+	public boolean showStars = false;
+
+	// Tuning
+	public float  orbitBaseAlpha = 0.25f;         // overall opacity for orbit lines
+	public double orbitMinVisiblePx = 2.0;        // if orbit appears smaller than this, skip
+	public double orbitFadeRefPx = 25.0;          // fade-in reference scale
+	public double orbitFadeGamma = 0.65;          // shape the fade
+
+	public int orbitSegmentsMin = 48;
+	public int orbitSegmentsMax = 200;
+
+	// Reuse buffers to avoid GC
+	private final double[] orbitCamTmp = new double[4];
+	private final java.awt.geom.Point2D.Double orbitScreenTmp = new java.awt.geom.Point2D.Double();
+	private final java.awt.geom.Point2D.Double orbitCenterScreenTmp = new java.awt.geom.Point2D.Double();
+
+	// if you want to convert to km in HUD:
     public static final double SCALE_KM_PER_UNIT = 100.0; // keep in sync with generator
 
 	public Space (int viewWidth, int viewHeight, int actualWidth, int actualHeight, ArrayList<Planet> ps2, Star s2, ArrayList<Moon> ss2) {
@@ -128,6 +151,17 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 
 		// In the plane, to the left of the star, looking right at it
 		frustrum.setCameraPosition(star.getX(), star.getY(), star.getZ() - camDist);
+
+		try {
+			java.nio.file.Path p = java.nio.file.Paths.get("saves", "hyg_stars.bin");
+			starfield = Starfield.loadFromFile(p);
+			starfield.debugStats = true;
+		} catch (IOException ex) {
+			ex.printStackTrace();
+			starfield = null;
+		}
+
+		System.out.println(starfield.count);
 
 		setFocusable(true);
 		setFocusTraversalKeysEnabled(true);
@@ -202,7 +236,15 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 		
 		gtb.setColor(Color.BLACK);
 		gtb.fillRect(0,0,VIEW_WIDTH,VIEW_HEIGHT);
-		
+
+		// Orbits (draw behind bodies)
+		drawOrbits(gtb);
+
+		// Starfield
+		if (showStars && starfield != null) {
+			starfield.draw(gtb, frustrum, VIEW_WIDTH, VIEW_HEIGHT);
+		}
+
 		//add all bodies to list, sort by distance to camera, draw closest to camera first
 		ArrayList<Body> drawList = new ArrayList<Body>();
 		
@@ -338,11 +380,244 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	        }
 	    }
 
-		
 		tdg.drawImage(back, null, 0, 0);
-		
 	}
-	
+
+	private void drawOrbits(Graphics2D g2) {
+		if (!showPlanetOrbits && !showMoonOrbits && !showAsteroidOrbits) return;
+
+		// We want these to obey your focus-system rule too:
+		// shouldDrawOverlaysFor(...) already encodes: sun always, focus system, etc. :contentReference[oaicite:3]{index=3}
+		// We’ll reuse it for orbits as well.
+
+		java.awt.Composite oldComp = g2.getComposite();
+		java.awt.Stroke oldStroke = g2.getStroke();
+
+		g2.setStroke(new BasicStroke(1f));
+
+		if (showPlanetOrbits) {
+			for (Planet p : ps) {
+				if (p == null) continue;
+				if (!shouldDrawOverlaysFor(p)) continue;
+				drawOrbitPathFor((OrbitingBody)p, g2, new Color(120,120,120));
+			}
+		}
+
+		if (showMoonOrbits) {
+			for (Moon m : ss) {
+				if (m == null) continue;
+				if (!shouldDrawOverlaysFor(m)) continue;
+				drawOrbitPathFor((OrbitingBody)m, g2, new Color(120,120,120));
+			}
+		}
+
+		if (showAsteroidOrbits) {
+			for (Asteroid a : asteroids) {
+				if (a == null) continue;
+				if (!shouldDrawOverlaysFor(a)) continue;
+				drawOrbitPathFor((OrbitingBody)a, g2, new Color(100,100,100));
+			}
+		}
+
+		g2.setComposite(oldComp);
+		g2.setStroke(oldStroke);
+	}
+
+	private void drawOrbitPathFor(OrbitingBody ob, Graphics2D g2, Color color) {
+		Body parent = ob.getParent();
+		if (parent == null) return;
+
+		// Orbit scale in world units
+		double a = ob.getSemiMajorAxis();   // you already use this for moons in estimateSystemRadiusUnits :contentReference[oaicite:5]{index=5}
+		double e = ob.e;
+
+		double apo = a * (1.0 + e);
+		if (apo <= 0) return;
+
+		// Project orbit center (parent) to estimate on-screen size
+		frustrum.worldToCameraSpaceDirect(parent.getX(), parent.getY(), parent.getZ(), orbitCamTmp);
+		if (!frustrum.project3DTo2D(
+				orbitCamTmp[0], orbitCamTmp[1], orbitCamTmp[2],
+				VIEW_WIDTH, VIEW_HEIGHT, orbitCenterScreenTmp
+		)) {
+			// Center not projectable => usually orbit won’t be helpful
+			return;
+		}
+
+		// Estimate pixels-per-unit using parent depth
+		// We can approximate by projecting a point offset by 1 unit along camera-right.
+		// (If you don’t have a “project with out param” overload, keep using the overload you used elsewhere.)
+		double pxPerUnit = estimatePixelsPerUnitAt(parent.getX(), parent.getY(), parent.getZ());
+		if (pxPerUnit <= 0) return;
+
+		double orbitPx = apo * pxPerUnit;
+		if (orbitPx < orbitMinVisiblePx) return;
+
+		// Fade orbits similar in spirit to overlay fading (but tuned separately)
+		double t = orbitPx / orbitFadeRefPx;
+		t = Math.max(0.0, Math.min(1.0, t));
+		double shaped = java.lang.Math.pow(t, orbitFadeGamma);
+		float alpha = (float)(orbitBaseAlpha * shaped);
+		if (alpha <= 0.001f) return;
+
+		g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
+		g2.setColor(orbitTint(ob.color, 0.25f, 70));
+
+		// Adaptive segment count based on orbit size on screen
+		int seg = (int)Math.round(orbitSegmentsMin + (orbitSegmentsMax - orbitSegmentsMin) * Math.min(1.0, orbitPx / 400.0));
+		seg = Math.max(orbitSegmentsMin, Math.min(orbitSegmentsMax, seg));
+
+		// Precompute rotation terms (typical Ω-i-ω transform)
+		double cosO = Math.cos(ob.omegaBigRad);
+		double sinO = Math.sin(ob.omegaBigRad);
+		double cosI = Math.cos(ob.inclRad);
+		double sinI = Math.sin(ob.inclRad);
+		double cosw = Math.cos(ob.omegaSmallRad);
+		double sinw = Math.sin(ob.omegaSmallRad);
+
+		// We will draw segments only when consecutive points are projectable
+		boolean hasPrev = false;
+		int prevX = 0, prevY = 0;
+
+		for (int i = 0; i <= seg; i++) {
+			double nu = (2.0 * Math.PI) * (i / (double)seg); // true anomaly
+			double r = (a * (1.0 - e*e)) / (1.0 + e * Math.cos(nu));
+
+			// Perifocal coordinates (orbit plane)
+			double xP = r * Math.cos(nu);
+			double yP = r * Math.sin(nu);
+
+			// Rotate by ω
+			double x1 = xP * cosw - yP * sinw;
+			double y1 = xP * sinw + yP * cosw;
+
+			// Rotate by i (about x)
+			double x2 = x1;
+			double y2 = y1 * cosI;
+			double z2 = y1 * sinI;
+
+			// Rotate by Ω (about z) -> this gives ECLIPTIC frame coords (xEc, yEc, zEc)
+			double xEc = x2 * cosO - y2 * sinO;
+			double yEc = x2 * sinO + y2 * cosO;
+			double zEc = z2;
+
+			// ECLIPTIC -> ENGINE remap (same convention as ringNormalFromPoleRADec):
+			// engine Y = ecliptic Z
+			// engine Z = ecliptic Y
+			double xEng = xEc;
+			double yEng = zEc;
+			double zEng = yEc;
+
+			// Translate to parent position in ENGINE coords
+			double wx = parent.getX() + xEng;
+			double wy = parent.getY() + yEng;
+			double wz = parent.getZ() + zEng;
+
+			frustrum.worldToCameraSpaceDirect(wx, wy, wz, orbitCamTmp);
+			if (!frustrum.project3DTo2D(
+					orbitCamTmp[0], orbitCamTmp[1], orbitCamTmp[2],
+					VIEW_WIDTH, VIEW_HEIGHT, orbitScreenTmp
+			)) {
+				hasPrev = false;
+				continue;
+			}
+
+			int x = (int)Math.round(orbitScreenTmp.x);
+			int y = (int)Math.round(orbitScreenTmp.y);
+
+			if (hasPrev) {
+				g2.drawLine(prevX, prevY, x, y);
+			}
+			prevX = x; prevY = y;
+			hasPrev = true;
+		}
+	}
+
+	// Returns ENGINE-frame world position for a given true anomaly nu (radians)
+	private static Vector3d orbitPointEngine(
+			double a, double e,
+			double omegaBig, double incl, double omegaSmall,
+			double nu,
+			Vector3d parentPos
+	) {
+		// radius in orbital plane
+		double r = (a * (1.0 - e*e)) / (1.0 + e * Math.cos(nu));
+
+		// orbital plane coords (perifocal): z' = 0
+		double xP = r * Math.cos(nu);
+		double yP = r * Math.sin(nu);
+
+		// Precompute trig
+		double cO = Math.cos(omegaBig),  sO = Math.sin(omegaBig);   // Ω
+		double ci = Math.cos(incl),      si = Math.sin(incl);       // i
+		double cw = Math.cos(omegaSmall),sw = Math.sin(omegaSmall); // ω
+
+		// Perifocal -> ecliptic (standard 3-1-3: Rz(Ω) Rx(i) Rz(ω))
+		double xEc =
+				(cO*cw - sO*sw*ci) * xP +
+						(-cO*sw - sO*cw*ci) * yP;
+
+		double yEc =
+				(sO*cw + cO*sw*ci) * xP +
+						(-sO*sw + cO*cw*ci) * yP;
+
+		double zEc =
+				(sw*si) * xP +
+						(cw*si) * yP;
+
+		// ECLIPTIC -> ENGINE remap (same as ringNormalFromPoleRADec)
+		double x = xEc;
+		double y = zEc;  // engine Y = ecliptic Z
+		double z = yEc;  // engine Z = ecliptic Y
+
+		return new Vector3d(
+				parentPos.x + x,
+				parentPos.y + y,
+				parentPos.z + z
+		);
+	}
+
+	private double estimatePixelsPerUnitAt(double wx, double wy, double wz) {
+		// project center
+		frustrum.worldToCameraSpaceDirect(wx, wy, wz, orbitCamTmp);
+		if (!frustrum.project3DTo2D(orbitCamTmp[0], orbitCamTmp[1], orbitCamTmp[2],
+				VIEW_WIDTH, VIEW_HEIGHT, orbitCenterScreenTmp)) {
+			return 0.0;
+		}
+
+		// project a point 1 unit to the camera-right direction in world space:
+		// Use Frustum basis helper (you already call computeCameraBasis elsewhere, though currently allocating arrays). :contentReference[oaicite:6]{index=6}
+		double[] f = new double[3];
+		double[] r = new double[3];
+		double[] u = new double[3];
+		Frustum.computeCameraBasis(yaw, pitch, f, r, u);
+
+		double wx2 = wx + r[0];
+		double wy2 = wy + r[1];
+		double wz2 = wz + r[2];
+
+		frustrum.worldToCameraSpaceDirect(wx2, wy2, wz2, orbitCamTmp);
+		if (!frustrum.project3DTo2D(orbitCamTmp[0], orbitCamTmp[1], orbitCamTmp[2],
+				VIEW_WIDTH, VIEW_HEIGHT, orbitScreenTmp)) {
+			return 0.0;
+		}
+
+		double dx = orbitScreenTmp.x - orbitCenterScreenTmp.x;
+		double dy = orbitScreenTmp.y - orbitCenterScreenTmp.y;
+		return Math.sqrt(dx*dx + dy*dy); // pixels per 1 world unit
+	}
+
+	private static Color orbitTint(Color bodyColor, float tintAmount, int baseGray) {
+		// tintAmount: 0 = pure gray, 1 = pure body color
+		int r = (int)(baseGray + tintAmount * (bodyColor.getRed()   - baseGray));
+		int g = (int)(baseGray + tintAmount * (bodyColor.getGreen() - baseGray));
+		int b = (int)(baseGray + tintAmount * (bodyColor.getBlue()  - baseGray));
+		r = Math.max(0, Math.min(255, r));
+		g = Math.max(0, Math.min(255, g));
+		b = Math.max(0, Math.min(255, b));
+		return new Color(r, g, b);
+	}
+
 	private String formatSimSpeed(double simSecondsPerSecond) {
 	    double sec = simSecondsPerSecond;
 
@@ -713,7 +988,19 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	        	break;
 	        case KeyEvent.VK_SLASH:
 	        	selectNearestBodyForInfo();
-	    }
+			case KeyEvent.VK_1:
+				showPlanetOrbits = !showPlanetOrbits;
+				break;
+			case KeyEvent.VK_2:
+				showMoonOrbits = !showMoonOrbits;
+				break;
+			case KeyEvent.VK_3:
+				showAsteroidOrbits = !showAsteroidOrbits;
+				break;
+			case KeyEvent.VK_0:
+				showStars = !showStars;
+				break;
+		}
 	}
 	
 	@Override
