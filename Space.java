@@ -42,6 +42,8 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	
 	public static double yaw;
 	public static double pitch;
+
+	private CameraController camera;
 	
 	// movement flags
 	private boolean moveForward  = false;
@@ -161,6 +163,9 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 		// In the plane, to the left of the star, looking right at it
 		frustrum.setCameraPosition(star.getX(), star.getY(), star.getZ() - camDist);
 
+		camera = new CameraController(frustrum);
+		camera.setYawPitchDeg(yaw, pitch);
+
 		try {
 			java.nio.file.Path p = java.nio.file.Paths.get("saves", "hyg_stars.bin");
 			starfield = Starfield.loadFromFile(p);
@@ -277,16 +282,16 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	    gtb.setColor(Color.WHITE);
 	    int hudY = 20;
 
-	    double speed = baseSpeed * java.lang.Math.pow(2.0, speedLevel) * SCALE_KM_PER_UNIT;
+		double speed = (camera != null ? camera.getCurrentSpeedUnitsPerSecond() : 0.0) * SCALE_KM_PER_UNIT;
 	    double simSecondsPerSecond = displaySpeed; // because simTime += realTime * displaySpeed
 	    String simSpeedStr = formatSimSpeed(simSecondsPerSecond);
 	    
 	    gtb.drawString("Sim Speed: " + simSpeedStr, 10, hudY);
 	    hudY += 15;
-	    gtb.drawString(
-	    	    String.format("Speed: base * 2^%d  (%.3g km/s)", speedLevel, speed),
-	    	    10, hudY
-	    	);
+		gtb.drawString(
+				String.format("Speed: base * 2^%d  (%.3g km/s)", (camera != null ? camera.getSpeedLevel() : 0), speed),
+				10, hudY
+		);
 	    hudY += 15;
 	    gtb.drawString("W/S: forward/back  A/D: strafe  Space/Ctrl: up/down  Q/E: speed -/+  L: toggle labels  ?:  Show nearest body info", 10, hudY);
 	    hudY += 45;
@@ -690,15 +695,16 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	    if (!focusCullingEnabled) { focusPlanet = null; return; }
 
 	    // Prefer lock state as the most intentional signal.
-	    if (locked && lockedBody != null) {
-	        if (lockedBody instanceof Moon)   { focusPlanet = ((Moon) lockedBody).getPlanet(); return; }
-	        if (lockedBody instanceof Planet) { focusPlanet = (Planet) lockedBody; return; }
-	        // locked to Sun or asteroid -> treat as global
-	        focusPlanet = null;
-	        return;
-	    }
+		if (camera != null && camera.isLocked()) {
+			Body lb = camera.getLockedBody();
+			if (lb instanceof Moon)   { focusPlanet = ((Moon) lb).getPlanet(); return; }
+			if (lb instanceof Planet) { focusPlanet = (Planet) lb; return; }
+			focusPlanet = null;
+			return;
+		}
 
-	    // Otherwise infer by camera proximity to each planet’s “system radius”
+
+		// Otherwise infer by camera proximity to each planet’s “system radius”
 	    Planet best = null;
 	    double bestScore = Double.POSITIVE_INFINITY;
 
@@ -802,133 +808,20 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	}
 
 	private void updateCameraPosition(double dtSeconds) {
-	    // 1) If locked, always keep camera attached to body + offset,
-	    //    even when not moving.
-	    if (locked && lockedBody != null) {
-	        frustrum.cameraX = lockedBody.getX() + lockOffsetX;
-	        frustrum.cameraY = lockedBody.getY() + lockOffsetY;
-	        frustrum.cameraZ = lockedBody.getZ() + lockOffsetZ;
-	    }
+		if (camera == null) return;
+		camera.update(dtSeconds);
 
-	    // 2) No movement input? Nothing more to do.
-
-		if (!moveForward && !moveBackward &&
-				!moveLeft && !moveRight &&
-				!moveUp && !moveDown &&
-				!keyLeft && !keyRight &&
-				!keyUp && !keyDown) {
-			return;
-		}
-
-		// dtSeconds = time since last frame in seconds
-		double ROT_DEG_PER_SEC = 45.0; // tune
-
-		double yawDelta   = 0.0;
-		double pitchDelta = 0.0;
-
-		if (keyLeft)  yawDelta   -= ROT_DEG_PER_SEC * dtSeconds;
-		if (keyRight) yawDelta   += ROT_DEG_PER_SEC * dtSeconds;
-		if (keyUp)    pitchDelta -= ROT_DEG_PER_SEC * dtSeconds;
-		if (keyDown)  pitchDelta += ROT_DEG_PER_SEC * dtSeconds;
-
-		// Apply (use whatever your code stores yaw/pitch in)
-		yaw   += yawDelta;
-		pitch += pitchDelta;
-		// Clamp pitch so you don’t flip
-		pitch = Math.max(-89.0, Math.min(89.0, pitch));
-
-		// 3) Compute camera basis once
-	    double[] forward = new double[3];
-	    double[] right   = new double[3];
-	    double[] up      = new double[3]; // not used directly, but we compute it anyway
-
-	    Frustum.computeCameraBasis(yaw, pitch, forward, right, up);
-
-	    double fx = forward[0], fy = forward[1], fz = forward[2];
-	    double rx = right[0],   ry = right[1],   rz = right[2];
-
-	    // World up for vertical movement
-	    double upx = 0.0, upy = 1.0, upz = 0.0;
-
-	    // 4) Build movement direction in world space (same for locked/unlocked)
-	    double moveX = 0.0, moveY = 0.0, moveZ = 0.0;
-
-	    // W/S: forward/back
-	    if (moveForward) {
-	        moveX += fx; moveY += fy; moveZ += fz;
-	    }
-	    if (moveBackward) {
-	        moveX -= fx; moveY -= fy; moveZ -= fz;
-	    }
-
-	    // A/D: strafe
-	    if (moveRight) {
-	        moveX += rx; moveY += ry; moveZ += rz;
-	    }
-	    if (moveLeft) {
-	        moveX -= rx; moveY -= ry; moveZ -= rz;
-	    }
-
-	    // Up/Down: world vertical
-	    if (moveUp) {
-	        moveX += upx; moveY += upy; moveZ += upz;
-	    }
-	    if (moveDown) {
-	        moveX -= upx; moveY -= upy; moveZ -= upz;
-	    }
-
-	    // 5) Normalize movement vector
-	    double len = Math.sqrt(moveX*moveX + moveY*moveY + moveZ*moveZ);
-	    if (len == 0.0)
-	        return;
-
-	    moveX /= len;
-	    moveY /= len;
-	    moveZ /= len;
-
-	    double speed    = baseSpeed * java.lang.Math.pow(2.0, speedLevel);
-	    double distance = speed * dtSeconds;
-
-	    // 6) Apply movement:
-	    //    - locked: adjust offset relative to body
-	    //    - unlocked: adjust camera position directly
-	    if (locked && lockedBody != null) {
-	        // Move the offset around the body
-	        lockOffsetX += moveX * distance;
-	        lockOffsetY += moveY * distance;
-	        lockOffsetZ += moveZ * distance;
-
-	        // Recompute camera from updated offset
-	        frustrum.cameraX = lockedBody.getX() + lockOffsetX;
-	        frustrum.cameraY = lockedBody.getY() + lockOffsetY;
-	        frustrum.cameraZ = lockedBody.getZ() + lockOffsetZ;
-	    } else {
-	        // Free-fly mode
-	        frustrum.cameraX += moveX * distance;
-	        frustrum.cameraY += moveY * distance;
-	        frustrum.cameraZ += moveZ * distance;
-	    }
+		// keep Space yaw/pitch in sync (used by orbit helpers, etc.)
+		yaw = camera.getYawDeg();
+		pitch = camera.getPitchDeg();
 	}
 
-	
 	public void lockToBody(Body body) {
-	    if (body == null) {
-	        locked = false;
-	        lockedBody = null;
-	        return;
-	    }
-
-	    locked = true;
-	    lockedBody = body;
-
-	    frustrum.cameraX = body.getX();
-	    frustrum.cameraY = body.getY() + body.radius * 2;
-	    frustrum.cameraZ = body.getZ();
+		if (camera != null) camera.lockToBody(body);
 	}
-	
+
 	public void unlockBody() {
-	    locked = false;
-	    lockedBody = null;
+		if (camera != null) camera.unlock();
 	}
 
 	public void run() {
@@ -949,50 +842,26 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
   	public long getSimulationTime() {
         return simulationTime;
     }
-  	
-  	public void keyReleased(KeyEvent e) {
-  	    int code = e.getKeyCode();
-  	    switch (code) {
-  	        case KeyEvent.VK_W: moveForward  = false; break;
-  	        case KeyEvent.VK_S: moveBackward = false; break;
-  	        case KeyEvent.VK_A: moveLeft     = false; break;
-  	        case KeyEvent.VK_D: moveRight    = false; break;
-			case KeyEvent.VK_LEFT:  keyLeft  = false; break;
-			case KeyEvent.VK_RIGHT: keyRight = false; break;
-			case KeyEvent.VK_UP:    keyUp    = false; break;
-			case KeyEvent.VK_DOWN:  keyDown  = false; break;
-  	        case KeyEvent.VK_SPACE: moveUp       = false; break;
-  	        case KeyEvent.VK_CONTROL: moveDown     = false; break;
-  	    }
-  	}
-	
+
+	public void keyReleased(KeyEvent e) {
+		if (camera != null) camera.handleKeyReleased(e);
+	}
+
 	public void keyPressed(KeyEvent e) {
-	    int code = e.getKeyCode();
-	    switch (code) {
-	        case KeyEvent.VK_W: moveForward  = true; break;
-	        case KeyEvent.VK_S: moveBackward = true; break;
-	        case KeyEvent.VK_A: moveLeft     = true; break;
-	        case KeyEvent.VK_D: moveRight    = true; break;
-			case KeyEvent.VK_LEFT:  keyLeft  = true; break;
-			case KeyEvent.VK_RIGHT: keyRight = true; break;
-			case KeyEvent.VK_UP:    keyUp    = true; break;
-			case KeyEvent.VK_DOWN:  keyDown  = true; break;
-	        case KeyEvent.VK_SPACE: moveUp       = true; break;
-	        case KeyEvent.VK_CONTROL: moveDown     = true; break;
-	        case KeyEvent.VK_Q:
-	            speedLevel = Math.max(minSpeedLevel, speedLevel - 1);
-	            break;
-	        case KeyEvent.VK_E:
-	            speedLevel = Math.min(maxSpeedLevel, speedLevel + 1);
-	            break;
-	        case KeyEvent.VK_L:
-	            showLabels = !showLabels;
-	            break;
-	        case KeyEvent.VK_I:
-	        	showIcons = !showIcons;
-	        	break;
-	        case KeyEvent.VK_SLASH:
-	        	selectNearestBodyForInfo();
+		if (camera != null && camera.handleKeyPressed(e)) {
+			return;
+		}
+
+		int code = e.getKeyCode();
+		switch (code) {
+			case KeyEvent.VK_L:
+				showLabels = !showLabels;
+				break;
+			case KeyEvent.VK_I:
+				showIcons = !showIcons;
+				break;
+			case KeyEvent.VK_SLASH:
+				selectNearestBodyForInfo();
 			case KeyEvent.VK_1:
 				showPlanetOrbits = !showPlanetOrbits;
 				break;
@@ -1007,55 +876,29 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 				break;
 		}
 	}
-	
+
 	@Override
 	public void mousePressed(MouseEvent e) {
 		requestFocusInWindow();
-
-	    Point point = e.getPoint();
-	    mouseDragTempX = point.x;
-	    mouseDragTempY = point.y;
-	    dragging = true;
+		if (camera != null) camera.handleMousePressed(e);
 	}
 
 	@Override
 	public void mouseReleased(MouseEvent e) {
-	    dragging = false;
-	    mouseDragTempX = -1;
-	    mouseDragTempY = -1;
+		if (camera != null) camera.handleMouseReleased(e);
 	}
-	
+
 	@Override
 	public void mouseDragged(MouseEvent event) {
-	    if (dragging) {
-	        Point point = event.getPoint();
+		if (camera != null) {
+			camera.handleMouseDragged(event, VIEW_WIDTH, VIEW_HEIGHT);
 
-	        double movementX = (mouseDragTempX - point.x);
-	        double movementY = (mouseDragTempY - point.y);
+			// keep Space yaw/pitch in sync immediately
+			yaw = camera.getYawDeg();
+			pitch = camera.getPitchDeg();
 
-	        final double yawSensitivity   = 180.0; // tweak to taste
-	        final double pitchSensitivity = 180.0;
-
-	        double deltaYaw   = (movementX / (double) VIEW_WIDTH)  * yawSensitivity;
-	        double deltaPitch = (movementY / (double) VIEW_HEIGHT) * pitchSensitivity;
-
-	        // invert signs if you want opposite feel
-	        yaw   -= deltaYaw;
-	        pitch += deltaPitch;
-
-	        // wrap yaw
-	        if (yaw < 0.0)      yaw += 360.0;
-	        if (yaw >= 360.0)   yaw -= 360.0;
-
-	        // clamp pitch
-	        if (pitch > 89.0)   pitch = 89.0;
-	        if (pitch < -89.0)  pitch = -89.0;
-
-	        mouseDragTempX = point.x;
-	        mouseDragTempY = point.y;
-
-	        repaint();
-	    }
+			repaint();
+		}
 	}
 
 	public void save(PrintWriter out) {
