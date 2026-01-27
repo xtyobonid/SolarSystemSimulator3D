@@ -24,7 +24,16 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	
 	private long lastCurrentTime;
 	public long simulationTime;
-	
+
+	// --- Accessors for serialization / refactoring ---
+	public Star getStar() { return star; }
+	public ArrayList<Planet> getPlanets() { return ps; }
+	public ArrayList<Moon> getMoons() { return ss; }
+	public ArrayList<Asteroid> getAsteroids() { return asteroids; }
+	public double getDisplaySpeed() { return displaySpeed; }
+	public void setSimulationTime(long t) { simulationTime = t; }
+	public void resetTimingAfterLoad() { lastCurrentTime = System.nanoTime(); }
+
 	private int mouseDragTempX = -1;
 	private int mouseDragTempY = -1;
 	
@@ -183,21 +192,17 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	    // dt in seconds for camera movement
 	    double dtSeconds = durationNanos / 1_000_000_000.0;
 
-	    // advance simulation time (scaled by displaySpeed)
-	    simulationTime += durationNanos * displaySpeed;
+		// advance sim time + move bodies
+		simulationTime = SimulationEngine.step(
+				simulationTime,
+				durationNanos,
+				displaySpeed,
+				ps,
+				ss,
+				asteroids
+		);
 
-	    // 1) Move bodies to their positions at this simulationTime
-	    for (Planet p : ps) {
-	        p.move(simulationTime);
-	    }
-	    for (Moon s : ss) {
-	        s.move(simulationTime);
-	    }
-	    for (Asteroid a : asteroids) {
-	    	a.move(simulationTime);
-	    }
-
-	    // 2) Sync frustum orientation with current yaw/pitch
+		// 2) Sync frustum orientation with current yaw/pitch
 	    frustrum.cameraYaw   = yaw;
 	    frustrum.cameraPitch = pitch;
 
@@ -1054,203 +1059,12 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	}
 
 	public void save(PrintWriter out) {
-		out.println(simulationTime);
-
-		// --- Planets ---
-		out.println(ps.size());
-		for (Planet p : ps) out.println(p.save());
-
-		// --- Rings ---
-		int ringCount = 0;
-		for (Planet p : ps) {
-			RingSystem rs = p.getRings();
-			if (rs != null && !rs.getBands().isEmpty()) ringCount++;
-		}
-		out.println(ringCount);
-
-		for (Planet p : ps) {
-			RingSystem rs = p.getRings();
-			if (rs == null || rs.getBands().isEmpty()) continue;
-
-			Vector3d n = rs.getNormal();
-
-			// Header format (one line):
-			// planetName angularSpeed nx ny nz shadowBrightness shadowSoftness bandCount
-			out.println(
-					p.getName() + " " +
-							rs.getAngularSpeed() + " " +
-							n.x + " " + n.y + " " + n.z + " " +
-							rs.ringShadowBrightness + " " +
-							rs.ringShadowSoftness + " " +
-							rs.getBands().size()
-			);
-
-			// Band format (one line each):
-			// innerRadius outerRadius particleCount colorRGB opticalDepth
-			for (RingSystem.RingBand b : rs.getBands()) {
-				out.println(
-						b.innerRadius + " " +
-								b.outerRadius + " " +
-								b.particleCount + " " +
-								b.color.getRGB() + " " +
-								b.opticalDepth
-				);
-			}
-		}
-
-		// --- Moons ---
-		out.println(ss.size());
-		for (Moon m : ss) {
-			// append host planet name as LAST TOKEN (your current format)
-			out.println(m.save() + " " + m.getPlanetName());
-		}
-
-		// --- Asteroids ---
-		out.println(asteroids.size());
-		for (Asteroid a : asteroids) out.println(a.save());
-
-		out.close();
+		SystemSerializer.save(this, out);
 	}
 
 	public void load(Scanner load) {
-		ps.clear();
-		ss.clear();
-		asteroids.clear();
-
-		String line;
-
-		// --- simulation time (first data line) ---
-		line = nextDataLine(load);
-		if (line == null) return;
-		simulationTime = Long.parseLong(line);
-
-		// --- planets ---
-		line = nextDataLine(load);
-		if (line == null) return;
-		int numPlanets = Integer.parseInt(line);
-
-		for (int i = 0; i < numPlanets; i++) {
-			String pLine = nextDataLine(load);     // <= important change
-			if (pLine == null) return;
-			Planet p = new Planet(pLine, star, displaySpeed);
-			ps.add(p);
-		}
-
-		// --- Rings (loaded from file) ---
-		line = nextDataLine(load);
-		if (line == null) return;
-		int numRingSystems = Integer.parseInt(line);
-
-		// map planet names
-		java.util.HashMap<String, Planet> planetByName = new java.util.HashMap<>();
-		for (Planet p : ps) planetByName.put(p.getName(), p);
-
-		for (int r = 0; r < numRingSystems; r++) {
-			String header = nextDataLine(load);
-			if (header == null) return;
-
-			java.util.Scanner hs = new java.util.Scanner(header);
-
-			String planetName = hs.next();
-			double angularSpeed = hs.nextDouble();
-
-			double nx = hs.nextDouble();
-			double ny = hs.nextDouble();
-			double nz = hs.nextDouble();
-
-			float shadowBrightness = hs.nextFloat();
-			double shadowSoftness = hs.nextDouble();
-
-			int bandCount = hs.nextInt();
-			hs.close();
-
-			Planet planet = planetByName.get(planetName);
-			// Always consume the band lines even if planet is missing
-			if (planet == null) {
-				for (int i = 0; i < bandCount; i++) nextDataLine(load);
-				continue;
-			}
-
-			RingSystem rs = new RingSystem(planet, angularSpeed, new Vector3d(nx, ny, nz));
-			rs.ringShadowBrightness = shadowBrightness;
-			rs.ringShadowSoftness = shadowSoftness;
-
-			for (int i = 0; i < bandCount; i++) {
-				String bandLine = nextDataLine(load);
-				if (bandLine == null) return;
-
-				java.util.Scanner bs = new java.util.Scanner(bandLine);
-				double inner = bs.nextDouble();
-				double outer = bs.nextDouble();
-				int particleCount = bs.nextInt();
-				int rgb = bs.nextInt();
-				float opticalDepth = bs.nextFloat();
-				bs.close();
-
-				rs.addBand(new RingSystem.RingBand(
-						inner, outer, particleCount,
-						new java.awt.Color(rgb, true),
-						opticalDepth
-				));
-			}
-
-			planet.setRings(rs);
-		}
-
-		// --- moons ---
-		line = nextDataLine(load);
-		if (line == null) return;
-		int numMoons = Integer.parseInt(line);
-
-		for (int i = 0; i < numMoons; i++) {
-			String mLine = nextDataLine(load);     // <= important change
-			if (mLine == null) return;
-
-			String planetName = mLine.substring(mLine.lastIndexOf(" ") + 1);
-
-			Planet p = ps.get(0);
-			for (int j = 1; j < ps.size(); j++) {
-				if (ps.get(j).getName().equals(planetName)) {
-					p = ps.get(j);
-				}
-			}
-
-			Moon m = new Moon(mLine.substring(0, mLine.lastIndexOf(" ")), p, displaySpeed);
-			ss.add(m);
-		}
-
-		// --- asteroids ---
-		line = nextDataLine(load);
-		if (line == null) return;
-		int numAsteroids = Integer.parseInt(line);
-
-		for (int i = 0; i < numAsteroids; i++) {
-			String aLine = nextDataLine(load);     // <= important change
-			if (aLine == null) return;
-
-			Asteroid a = new Asteroid(aLine, star, displaySpeed);
-			asteroids.add(a);
-		}
-
-		load.close();
-		lastCurrentTime = System.nanoTime();
+		SystemSerializer.load(this, load);
 	}
-
-	// Reads the next meaningful line:
-	// - skips blank lines
-	// - skips comment lines starting with '#'
-	private static String nextDataLine(Scanner sc) {
-		while (sc.hasNextLine()) {
-			String line = sc.nextLine();
-			if (line == null) return null;
-			line = line.trim();
-			if (line.isEmpty()) continue;
-			if (line.startsWith("#")) continue;
-			return line;
-		}
-		return null;
-	}
-
 
 	private static final double MIN_VISUAL_RING_WIDTH_KM = 120.0;
 
