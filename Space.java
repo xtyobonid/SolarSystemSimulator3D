@@ -10,7 +10,7 @@ import javax.swing.*;
 import java.io.IOException;
 import java.io.PrintWriter;
 
-public class Space extends Canvas implements MouseMotionListener, MouseListener, KeyListener, Runnable {
+public class Space extends Canvas implements MouseMotionListener, MouseListener, KeyListener, Runnable, ControlActions {
 	
 	private Star star;
 	private ArrayList<Planet> ps;
@@ -41,7 +41,8 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	public static double pitch;
 
 	private CameraController camera;
-	
+	private Controls controls = new Controls();
+
 	// movement flags
 	private boolean moveForward  = false;
 	private boolean moveBackward = false;
@@ -651,7 +652,7 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	    return String.format("%.2f years/sec", years);
 	}
 	
-	private void selectNearestBodyForInfo() {
+	private void selectNearestBodyForInfoInternal() {
 	    Body nearest = null;
 	    double bestDist2 = Double.POSITIVE_INFINITY;
 
@@ -841,36 +842,14 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
     }
 
 	public void keyReleased(KeyEvent e) {
-		if (camera != null) camera.handleKeyReleased(e);
+		if (controls != null && controls.handleKeyReleased(e, camera)) {
+			return;
+		}
 	}
 
 	public void keyPressed(KeyEvent e) {
-		if (camera != null && camera.handleKeyPressed(e)) {
+		if (controls != null && controls.handleKeyPressed(e, camera, this)) {
 			return;
-		}
-
-		int code = e.getKeyCode();
-		switch (code) {
-			case KeyEvent.VK_L:
-				showLabels = !showLabels;
-				break;
-			case KeyEvent.VK_I:
-				showIcons = !showIcons;
-				break;
-			case KeyEvent.VK_SLASH:
-				selectNearestBodyForInfo();
-			case KeyEvent.VK_1:
-				showPlanetOrbits = !showPlanetOrbits;
-				break;
-			case KeyEvent.VK_2:
-				showMoonOrbits = !showMoonOrbits;
-				break;
-			case KeyEvent.VK_3:
-				showAsteroidOrbits = !showAsteroidOrbits;
-				break;
-			case KeyEvent.VK_0:
-				showStars = !showStars;
-				break;
 		}
 	}
 
@@ -896,6 +875,41 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 
 			repaint();
 		}
+	}
+
+	@Override
+	public void toggleLabels() {
+		showLabels = !showLabels;
+	}
+
+	@Override
+	public void toggleIcons() {
+		showIcons = !showIcons;
+	}
+
+	@Override
+	public void togglePlanetOrbits() {
+		showPlanetOrbits = !showPlanetOrbits;
+	}
+
+	@Override
+	public void toggleMoonOrbits() {
+		showMoonOrbits = !showMoonOrbits;
+	}
+
+	@Override
+	public void toggleAsteroidOrbits() {
+		showAsteroidOrbits = !showAsteroidOrbits;
+	}
+
+	@Override
+	public void toggleStars() {
+		showStars = !showStars;
+	}
+
+	@Override
+	public void selectNearestBodyForInfo() {
+		selectNearestBodyForInfoInternal();
 	}
 
 	public void save(PrintWriter out) {
