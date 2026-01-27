@@ -7,7 +7,6 @@ public final class Lighting {
     public static float PLANET_AMBIENT = 0.0f;
 
     // Solar falloff shaping to keep outer planets visible while still dimmer.
-    public static float SOLAR_GAMMA = 0.35f; // 0.25–0.5
     public static float SOLAR_MIN   = 0.1f; // never fully black
     public static float SOLAR_MAX   = 1.25f; // allow slight overbright near sun
 
@@ -30,7 +29,6 @@ public final class Lighting {
 
         double auUnits = AU_KM / Space.SCALE_KM_PER_UNIT;
         double s = (auUnits * auUnits) / dist2;     // inverse-square relative to 1 AU
-        //s = Math.pow(s, SOLAR_GAMMA);               // perceptual shaping
         if (s < SOLAR_MIN) s = SOLAR_MIN;
         if (s > SOLAR_MAX) s = SOLAR_MAX;
         return (float)s;

@@ -1,4 +1,3 @@
-import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -6,7 +5,6 @@ import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Random;
 
 public class RingSystem {
     private static class Particle {
@@ -82,23 +80,11 @@ public class RingSystem {
 	    this.right = ref.cross(this.normal).normalize();
 	    this.forward = this.normal.cross(this.right).normalize();
 	}
-	
-	public RingSystem(Planet planet,
-            double innerRadius,
-            double outerRadius,
-            int particleCount,
-            Color color,
-            double angularSpeed,
-            Vector3d normalDir) {
-		this(planet, angularSpeed, normalDir);
-		addBand(new RingBand(innerRadius, outerRadius, particleCount, color, 1.0f));
-	}
 
-	public void draw(Graphics g, Space s, Frustum frustum, long simulationTime) {
-	    if (!(g instanceof Graphics2D)) return;
-	    Graphics2D g2 = (Graphics2D) g;
+	public void draw(Graphics g, Frustum frustum, long simulationTime) {
+	    if (!(g instanceof Graphics2D g2)) return;
 
-	    if (bands.isEmpty()) return;
+        if (bands.isEmpty()) return;
 
 	    double px = planet.getX();
 	    double py = planet.getY();
@@ -283,28 +269,6 @@ public class RingSystem {
 		return (float)(ringShadowBrightness + (1.0 - ringShadowBrightness) * s);
 	}
     
-    private float illuminationAtPlanet(Star sun, double px, double py, double pz) {
-        double dx = px - sun.getX();
-        double dy = py - sun.getY();
-        double dz = pz - sun.getZ();
-        double dist2 = dx*dx + dy*dy + dz*dz;
-
-        // 1 AU in your sim units
-        double au = 149_597_870.7 / Space.SCALE_KM_PER_UNIT;
-
-        double au2 = au * au;
-        if (dist2 < 1e-12) dist2 = 1e-12;
-
-        // Inverse square falloff relative to 1 AU
-        double s = au2 / dist2;
-        
-        // Optional shaping + clamp so rings never go completely invisible
-        //s = java.lang.Math.pow(s, 0.35);
-        s = Math.max(0.1, Math.min(1.0, s));
-
-        return (float) s;
-    }
-    
     public void addBand(RingBand band) {
         Particle[] ps = generateParticlesForBand(band);
 
@@ -317,7 +281,7 @@ public class RingSystem {
         Particle[] particles = new Particle[band.particleCount];
 
         java.util.Random rng = new java.util.Random(
-                planet.getName().hashCode() ^ (bands.size() * 0x9E3779B9) ^ band.color.getRGB()
+                planet.getName().hashCode() ^ (bands.size() * 0x9E3779B9L) ^ band.color.getRGB()
         );
 
         double radialSpan = band.outerRadius - band.innerRadius;

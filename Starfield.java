@@ -100,11 +100,6 @@ public final class Starfield {
         }
     }
 
-
-    // Relative flux from magnitude (Pogson)
-    private static float fluxFromMagnitude(float m) {
-        return (float) java.lang.Math.pow(10.0, -0.4 * m);
-    }
     private static float clampf(float x, float lo, float hi) {
         return (x < lo) ? lo : (x > hi) ? hi : x;
     }
@@ -169,17 +164,7 @@ public final class Starfield {
             // If the catalog includes “sun record” (-26.7), skip it.
             if (m < -5.0f) continue;
 
-            // pixels-per-radian using current camera FOV
-            float fovRad = (float)Math.toRadians(frustum.fov);
-            float pixelsPerRad = viewW / fovRad;
-
-            // Angular radius in pixels: r = (R / d) * pixelsPerRad
-//            float dKm = distKm[i];
-//            float rKm = radiusKm[i];
             float rAngular = 0f;
-//            if (dKm > 0f && rKm > 0f) {
-//                rAngular = (rKm / dKm) * pixelsPerRad;
-//            }
 
             // magnitude brightness (scaled)
             float bMag = brightnessFromMag(m) * magExposure;
@@ -250,10 +235,10 @@ public final class Starfield {
             long now = System.nanoTime();
             if (now - lastStatsNs >= 1_000_000_000L) {
                 double avgA = (drawn > 0) ? (sumA / drawn) : 0.0;
-                System.out.println(String.format(
-                        "STARS: drawn=%d  mag=[%.2f..%.2f]  alpha=[%.4f..%.4f]  avg=%.4f",
+                System.out.printf(
+                        "STARS: drawn=%d  mag=[%.2f..%.2f]  alpha=[%.4f..%.4f]  avg=%.4f%n",
                         drawn, minM, maxM, minA, maxA, avgA
-                ));
+                );
                 lastStatsNs = now;
             }
         }

@@ -89,7 +89,7 @@ public final class SystemSerializer {
         for (int i = 0; i < numPlanets; i++) {
             String pLine = nextDataLine(load);
             if (pLine == null) return;
-            Planet p = new Planet(pLine, space.getStar(), space.getDisplaySpeed());
+            Planet p = new Planet(pLine, space.getStar());
             space.getPlanets().add(p);
         }
 
@@ -173,7 +173,7 @@ public final class SystemSerializer {
             }
             if (p == null) return; // no planets to attach to
 
-            Moon m = new Moon(mLine.substring(0, mLine.lastIndexOf(" ")), p, space.getDisplaySpeed());
+            Moon m = new Moon(mLine.substring(0, mLine.lastIndexOf(" ")), p);
             space.getMoons().add(m);
         }
 
@@ -186,7 +186,7 @@ public final class SystemSerializer {
             String aLine = nextDataLine(load);
             if (aLine == null) return;
 
-            Asteroid a = new Asteroid(aLine, space.getStar(), space.getDisplaySpeed());
+            Asteroid a = new Asteroid(aLine, space.getStar());
             space.getAsteroids().add(a);
         }
 

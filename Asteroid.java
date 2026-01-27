@@ -4,7 +4,7 @@ import java.util.Scanner;
 public class Asteroid extends OrbitingBody {
     private static final int ASTEROID_ICON_RADIUS = 2;
 
-    public Asteroid(String serialization, Star star, double displaySpeed) {
+    public Asteroid(String serialization, Star star) {
         super(star);
 
         Scanner load = new Scanner(serialization);

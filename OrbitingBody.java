@@ -140,10 +140,9 @@ public abstract class OrbitingBody extends Body {
     
     @Override
     public void draw(Graphics g, Space s, Frustum frustum) {
-        if (!(g instanceof Graphics2D)) {
+        if (!(g instanceof Graphics2D g2)) {
             return;
         }
-        Graphics2D g2 = (Graphics2D) g;
 
         double worldX = x;
         double worldY = y;
@@ -176,7 +175,7 @@ public abstract class OrbitingBody extends Body {
         final int W = Space.VIEW_WIDTH;
         final int H = Space.VIEW_HEIGHT;
 
-        double r  = pixelRadius;
+        double r = pixelRadius;
 
         // Completely off-screen? Skip ALL drawing work.
         if (projectedPoint.x + r < 0 || projectedPoint.x - r > W || projectedPoint.y + r < 0 || projectedPoint.y - r > H) {
@@ -211,12 +210,10 @@ public abstract class OrbitingBody extends Body {
             drawOverlay(g2, s, frustum, projectedPoint, pixelRadius);
             return;
         }
-
-        double MAX_PIXEL_RADIUS = 1500.0;
         
         // ----- Find the primary star (Sun) for lighting -----
         Body star = getRootStar();
-        if (star == null || star == this) {
+        if (star == null) {
             // No star? Just draw flat colored sphere as before.
             g2.setColor(color);
             int d = (int)(2.0 * pixelRadius);
@@ -306,8 +303,6 @@ public abstract class OrbitingBody extends Body {
                 double sx = (mid - cx) / (double)rPix;
                 double r2 = sx*sx + sy*sy;
                 if (r2 > 1.0) continue;
-
-                double sz = Math.sqrt(1.0 - r2);
 
                 // Convert pixel -> NDC
                 double ndcX = (2.0 * mid) / (double)Space.VIEW_WIDTH  - 1.0;

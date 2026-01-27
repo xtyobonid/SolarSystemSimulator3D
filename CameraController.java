@@ -27,8 +27,6 @@ public final class CameraController {
 
     // Speed control (matches the values previously in Space)
     private int speedLevel = 0;          // 0 = baseSpeed, negative = slower, positive = faster
-    private final int minSpeedLevel = -4;
-    private final int maxSpeedLevel = 12;
     private double baseSpeed = 500.0;    // units per second
 
     // Mouse drag look
@@ -189,10 +187,10 @@ public final class CameraController {
             case KeyEvent.VK_CONTROL: moveDown = true; return true;
 
             case KeyEvent.VK_Q:
-                speedLevel = Math.max(minSpeedLevel, speedLevel - 1);
+                speedLevel--;
                 return true;
             case KeyEvent.VK_E:
-                speedLevel = Math.min(maxSpeedLevel, speedLevel + 1);
+                speedLevel++;
                 return true;
         }
         return false;

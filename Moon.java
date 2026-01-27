@@ -1,14 +1,13 @@
 import java.awt.*;
-import java.awt.geom.Point2D;
 import java.lang.Math;
 import java.util.Scanner;
 
 public class Moon extends OrbitingBody {
 	private static final int ICON_RADIUS = 3;
 	
-	private Planet planet;
+	private final Planet planet;
 	
-    public Moon(String serialization, Planet parentPlanet, double displaySpeed) {
+    public Moon(String serialization, Planet parentPlanet) {
         super(parentPlanet);
         this.planet = parentPlanet;
 

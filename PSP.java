@@ -3,14 +3,10 @@ import java.awt.*;
 import java.util.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyListener;
 import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.awt.event.KeyEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.event.ChangeEvent;
 import javax.swing.JButton;
@@ -19,12 +15,7 @@ import javax.swing.JTextField;
 import javax.swing.JComboBox;
 import javax.swing.JSlider;
 import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.AbstractButton;
 import javax.swing.JOptionPane;
-
-// To do:
-//
 
 public class PSP extends JFrame implements ActionListener, ChangeListener {
 	

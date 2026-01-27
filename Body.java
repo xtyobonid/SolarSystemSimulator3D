@@ -39,8 +39,7 @@ public abstract class Body {
         float a = s.computeOverlayAlpha(this, pixelRadius);
         if (a <= 0f) return;
 
-        if (!(g instanceof Graphics2D)) return;
-        Graphics2D g2 = (Graphics2D) g;
+        if (!(g instanceof Graphics2D g2)) return;
 
         java.awt.Composite oldComp = g2.getComposite();
         java.awt.Color oldColor = g2.getColor();
@@ -120,15 +119,13 @@ public abstract class Body {
     }
     
     protected void renderSubpixelPoint(Graphics g, Point2D.Double screenPos, double pixelRadius) {
-        if (!(g instanceof Graphics2D)) {
+        if (!(g instanceof Graphics2D g2)) {
             // Fallback: just draw a 1x1 dot
             int x = (int) Math.round(screenPos.x);
             int y = (int) Math.round(screenPos.y);
             g.fillRect(x, y, 1, 1);
             return;
         }
-
-        Graphics2D g2 = (Graphics2D) g;
 
         // Fractional pixel coverage ~ area of the projected disk
         double coverage = Math.PI * pixelRadius * pixelRadius; // 0..~1

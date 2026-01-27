@@ -1,15 +1,8 @@
 
 public class Vector3d {
-
-    private static final long serialVersionUID = 1L;
-
-
     public double x;
-
     public double y;
-
     public double z;
-
 
     public Vector3d(double x, double y, double z) {
         this.x = x;

@@ -43,8 +43,6 @@ public class Frustum {
         double yawRad   = Math.toRadians(yawDeg);
         double pitchRad = Math.toRadians(pitchDeg);
 
-        double cosYaw   = Math.cos(yawRad);
-        double sinYaw   = Math.sin(yawRad);
         double cosPitch = Math.cos(pitchRad);
         double sinPitch = Math.sin(pitchRad);
 
@@ -156,33 +154,6 @@ public class Frustum {
         cameraSpacePosition[3] = viewMatrix[3] * x + viewMatrix[7] * y + viewMatrix[11] * z + viewMatrix[15];
         return cameraSpacePosition;
     }
-    
-//    public double[] worldToCameraSpaceDirect(double x, double y, double z) {
-//        // 1) Compute basis from current camera orientation
-//        double[] f = new double[3];
-//        double[] r = new double[3];
-//        double[] u = new double[3];
-//        Frustum.computeCameraBasis(cameraYaw, cameraPitch, f, r, u);
-//
-//        double fx = f[0], fy = f[1], fz = f[2];
-//        double rx = r[0], ry = r[1], rz = r[2];
-//        double ux = u[0], uy = u[1], uz = u[2];
-//
-//        // 2) Vector from camera to point in world space
-//        double dx = x - cameraX;
-//        double dy = y - cameraY;
-//        double dz = z - cameraZ;
-//
-//        // 3) Project onto camera basis:
-//        // camera X = dot(dir, right)
-//        // camera Y = dot(dir, up)
-//        // camera Z = dot(dir, -forward)  (looking along -Z in camera space)
-//        double camX = dx * rx + dy * ry + dz * rz;
-//        double camY = dx * ux + dy * uy + dz * uz;
-//        double camZ = dx * (-fx) + dy * (-fy) + dz * (-fz);
-//
-//        return new double[] { camX, camY, camZ, 1.0 };
-//    }
     
     public void worldToCameraSpaceDirect(double x, double y, double z, double[] out4) {
         // Compute camera basis (no array alloc)
@@ -298,7 +269,7 @@ public class Frustum {
         double fz = Math.cos(yaw) * Math.cos(pitch);
 
         // right = worldUp x forward
-        double rx = 1.0 * fz - 0.0 * fy;   // (0,1,0) x (fx,fy,fz) = (fz,0,-fx)
+        double rx = fz - 0.0 * fy;   // (0,1,0) x (fx,fy,fz) = (fz,0,-fx)
         double ry = 0.0;
         double rz = -fx;
 

@@ -1,5 +1,4 @@
 import java.awt.*;
-import java.awt.geom.Point2D;
 import java.util.Scanner;
 import java.lang.Math;
 
@@ -9,7 +8,7 @@ public class Planet extends OrbitingBody {
 	private RingSystem rings;
 	
 	//load planet
-	public Planet (String serialization, Star star, double displaySpeed) {
+	public Planet (String serialization, Star star) {
 	    super(star);
 
 	    Scanner load = new Scanner(serialization);
@@ -55,7 +54,7 @@ public class Planet extends OrbitingBody {
 
         // then draw rings if any
         if (rings != null) {
-            rings.draw(g, s, frustum, s.getSimulationTime());
+            rings.draw(g, frustum, s.getSimulationTime());
         }
     }
 	
