@@ -6,16 +6,15 @@ import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.awt.event.KeyEvent;
 import java.util.*;
-import javax.swing.*;
 import java.io.IOException;
 import java.io.PrintWriter;
 
 public class Space extends Canvas implements MouseMotionListener, MouseListener, KeyListener, Runnable, ControlActions {
 	
-	private Star star;
-	private ArrayList<Planet> ps;
-	private ArrayList<Moon> ss;
-	private ArrayList<Asteroid> asteroids;
+	private final Star star;
+	private final ArrayList<Planet> ps;
+	private final ArrayList<Moon> ss;
+	private final ArrayList<Asteroid> asteroids;
 	private BufferedImage back;
 	private double displaySpeed;
 	
@@ -30,9 +29,6 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	public double getDisplaySpeed() { return displaySpeed; }
 	public void setSimulationTime(long t) { simulationTime = t; }
 	public void resetTimingAfterLoad() { lastCurrentTime = System.nanoTime(); }
-
-	private int mouseDragTempX = -1;
-	private int mouseDragTempY = -1;
 	
 	public double viewX;
 	public double viewY;
@@ -40,47 +36,17 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	public static double yaw;
 	public static double pitch;
 
-	private CameraController camera;
-	private Controls controls = new Controls();
-
-	// movement flags
-	private boolean moveForward  = false;
-	private boolean moveBackward = false;
-	private boolean moveLeft     = false;
-	private boolean moveRight    = false;
-	private boolean moveUp       = false;
-	private boolean moveDown     = false;
-
-	private boolean keyLeft, keyRight, keyUp, keyDown;
-
-	// speed control
-	private int speedLevel = 0;          // 0 = baseSpeed, negative = slower, positive = faster
-	private final int minSpeedLevel = -4;
-	private final int maxSpeedLevel = 12;
-	private double baseSpeed = 500.0;   // units per second, tune to taste
-
-	// time tracking for camera movement
-	private long lastCameraUpdateTime = System.nanoTime();
+	private final CameraController camera;
+	private final Controls controls = new Controls();
 	
-	public static Frustum frustrum;
-	
-	public boolean locked = false;
-	public Body lockedBody;
-	
-	// new: camera offset relative to locked body
-	private double lockOffsetX = 0.0;
-	private double lockOffsetY = 0.0;
-	private double lockOffsetZ = 0.0;
-	
-	boolean dragging = false;
+	public static Frustum frustum;
 	
 	public static int VIEW_WIDTH;
 	public static int VIEW_HEIGHT;
 	
 	public static int ACTUAL_WIDTH;
 	public static int ACTUAL_HEIGHT;
-	
-	public static final int FRAMERATE = 30;
+
 	
 	public boolean showLabels = false;
 	public boolean showIcons = true;
@@ -96,8 +62,8 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	public double overlayFadeGamma = 0.1;           // >1 dims small things more
 
 	// Focus system sizing
-	private double focusSystemPadding = 5;
-	private double focusFallbackRadiusMult = 250.0;
+	private final double focusSystemPadding = 5;
+	private final double focusFallbackRadiusMult = 250.0;
 	
     private Body lastInfoBody = null;
     private long infoHudUntilNanos = 0L;
@@ -143,15 +109,15 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 		VIEW_HEIGHT = viewHeight;
 		ACTUAL_WIDTH = actualWidth;
 		ACTUAL_HEIGHT = actualHeight;
-		viewX = ACTUAL_WIDTH/2;
-		viewY = ACTUAL_HEIGHT/2;
+		viewX = (double) ACTUAL_WIDTH /2;
+		viewY = (double) ACTUAL_HEIGHT /2;
 		
 		yaw = 90;
 		pitch = 0;
 		
 		double camDist = 10000000;
 
-		frustrum = new Frustum(
+		frustum = new Frustum(
 			    70,
 			    (double) VIEW_WIDTH / (double) VIEW_HEIGHT,
 			    1.0,
@@ -159,9 +125,9 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 			);
 
 		// In the plane, to the left of the star, looking right at it
-		frustrum.setCameraPosition(star.getX(), star.getY(), star.getZ() - camDist);
+		frustum.setCameraPosition(star.getX(), star.getY(), star.getZ() - camDist);
 
-		camera = new CameraController(frustrum);
+		camera = new CameraController(frustum);
 		camera.setYawPitchDeg(yaw, pitch);
 
 		try {
@@ -173,9 +139,11 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 			starfield = null;
 		}
 
-		System.out.println(starfield.count);
+        if (starfield != null) {
+            System.out.println(starfield.count);
+        }
 
-		setFocusable(true);
+        setFocusable(true);
 		setFocusTraversalKeysEnabled(true);
 		requestFocusInWindow();
 
@@ -206,8 +174,8 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 		);
 
 		// 2) Sync frustum orientation with current yaw/pitch
-	    frustrum.cameraYaw   = yaw;
-	    frustrum.cameraPitch = pitch;
+	    frustum.cameraYaw   = yaw;
+	    frustum.cameraPitch = pitch;
 
 	    // 3) Update camera position (locked or free) using NEW body positions
 	    updateCameraPosition(dtSeconds);
@@ -224,13 +192,6 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	        long total = rt.totalMemory() / (1024 * 1024);
 	        System.out.println("FRAME SPIKE: " + frameMs + " ms | heap " + used + " / " + total + " MB");
 	    }
-
-	    // 5) Sleep to cap framerate
-//		try {
-//			Thread.sleep(1000/FRAMERATE);
-//		} catch (InterruptedException e) {
-//			e.printStackTrace();
-//		}
 	}
 	
 	public void paint (Graphics window) {
@@ -250,30 +211,23 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 
 		// Starfield
 		if (showStars && starfield != null) {
-			starfield.draw(gtb, frustrum, VIEW_WIDTH, VIEW_HEIGHT);
+			starfield.draw(gtb, frustum, VIEW_WIDTH, VIEW_HEIGHT);
 		}
 
 		//add all bodies to list, sort by distance to camera, draw closest to camera first
-		ArrayList<Body> drawList = new ArrayList<Body>();
-		
-		for (Moon s : ss) {
-			drawList.add(s);
-		}
-		
-		for (Planet p : ps) {
-			drawList.add(p);
-		}
-		
-		for (Asteroid a : asteroids) {
-			drawList.add(a);
-		}
+
+        ArrayList<Body> drawList = new ArrayList<Body>(ss);
+
+        drawList.addAll(ps);
+
+        drawList.addAll(asteroids);
 		
 		drawList.add(star);
 		
 		drawList = sortDrawList(drawList);
 		
 		for(Body b: drawList) {
-			b.draw(gtb, this, frustrum);
+			b.draw(gtb, this, frustum);
 		}
 		
 		// HUD overlay
@@ -300,9 +254,9 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	        double by = lastInfoBody.getY();
 	        double bz = lastInfoBody.getZ();
 
-	        double cx = frustrum.cameraX;
-	        double cy = frustrum.cameraY;
-	        double cz = frustrum.cameraZ;
+	        double cx = frustum.cameraX;
+	        double cy = frustum.cameraY;
+	        double cz = frustum.cameraZ;
 
 	        double dx = bx - cx;
 	        double dy = by - cy;
@@ -336,9 +290,8 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	        hudY += 15;
 
 	        // Extra details if this is an orbiting body
-	        if (lastInfoBody instanceof OrbitingBody) {
-	            OrbitingBody ob = (OrbitingBody) lastInfoBody;
-	            Body parent = ob.getParent();  // make sure OrbitingBody has this getter
+	        if (lastInfoBody instanceof OrbitingBody ob) {
+                Body parent = ob.getParent();  // make sure OrbitingBody has this getter
 
 	            // Orbital elements
 	            double e = ob.e;                       // eccentricity
@@ -395,7 +348,7 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 		if (!showPlanetOrbits && !showMoonOrbits && !showAsteroidOrbits) return;
 
 		// We want these to obey your focus-system rule too:
-		// shouldDrawOverlaysFor(...) already encodes: sun always, focus system, etc. :contentReference[oaicite:3]{index=3}
+		// shouldDrawOverlaysFor(...) already encodes: sun always, focus system, etc.
 		// We’ll reuse it for orbits as well.
 
 		java.awt.Composite oldComp = g2.getComposite();
@@ -407,7 +360,7 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 			for (Planet p : ps) {
 				if (p == null) continue;
 				if (!shouldDrawOverlaysFor(p)) continue;
-				drawOrbitPathFor((OrbitingBody)p, g2, new Color(120,120,120));
+				drawOrbitPathFor(p, g2);
 			}
 		}
 
@@ -415,7 +368,7 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 			for (Moon m : ss) {
 				if (m == null) continue;
 				if (!shouldDrawOverlaysFor(m)) continue;
-				drawOrbitPathFor((OrbitingBody)m, g2, new Color(120,120,120));
+				drawOrbitPathFor(m, g2);
 			}
 		}
 
@@ -423,7 +376,7 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 			for (Asteroid a : asteroids) {
 				if (a == null) continue;
 				if (!shouldDrawOverlaysFor(a)) continue;
-				drawOrbitPathFor((OrbitingBody)a, g2, new Color(100,100,100));
+				drawOrbitPathFor(a, g2);
 			}
 		}
 
@@ -431,20 +384,20 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 		g2.setStroke(oldStroke);
 	}
 
-	private void drawOrbitPathFor(OrbitingBody ob, Graphics2D g2, Color color) {
+	private void drawOrbitPathFor(OrbitingBody ob, Graphics2D g2) {
 		Body parent = ob.getParent();
 		if (parent == null) return;
 
 		// Orbit scale in world units
-		double a = ob.getSemiMajorAxis();   // you already use this for moons in estimateSystemRadiusUnits :contentReference[oaicite:5]{index=5}
+		double a = ob.getSemiMajorAxis();   // you already use this for moons in estimateSystemRadiusUnits
 		double e = ob.e;
 
 		double apo = a * (1.0 + e);
 		if (apo <= 0) return;
 
 		// Project orbit center (parent) to estimate on-screen size
-		frustrum.worldToCameraSpaceDirect(parent.getX(), parent.getY(), parent.getZ(), orbitCamTmp);
-		if (!frustrum.project3DTo2D(
+		frustum.worldToCameraSpaceDirect(parent.getX(), parent.getY(), parent.getZ(), orbitCamTmp);
+		if (!frustum.project3DTo2D(
 				orbitCamTmp[0], orbitCamTmp[1], orbitCamTmp[2],
 				VIEW_WIDTH, VIEW_HEIGHT, orbitCenterScreenTmp
 		)) {
@@ -454,7 +407,6 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 
 		// Estimate pixels-per-unit using parent depth
 		// We can approximate by projecting a point offset by 1 unit along camera-right.
-		// (If you don’t have a “project with out param” overload, keep using the overload you used elsewhere.)
 		double pxPerUnit = estimatePixelsPerUnitAt(parent.getX(), parent.getY(), parent.getZ());
 		if (pxPerUnit <= 0) return;
 
@@ -521,8 +473,8 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 			double wy = parent.getY() + yEng;
 			double wz = parent.getZ() + zEng;
 
-			frustrum.worldToCameraSpaceDirect(wx, wy, wz, orbitCamTmp);
-			if (!frustrum.project3DTo2D(
+			frustum.worldToCameraSpaceDirect(wx, wy, wz, orbitCamTmp);
+			if (!frustum.project3DTo2D(
 					orbitCamTmp[0], orbitCamTmp[1], orbitCamTmp[2],
 					VIEW_WIDTH, VIEW_HEIGHT, orbitScreenTmp
 			)) {
@@ -541,60 +493,16 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 		}
 	}
 
-	// Returns ENGINE-frame world position for a given true anomaly nu (radians)
-	private static Vector3d orbitPointEngine(
-			double a, double e,
-			double omegaBig, double incl, double omegaSmall,
-			double nu,
-			Vector3d parentPos
-	) {
-		// radius in orbital plane
-		double r = (a * (1.0 - e*e)) / (1.0 + e * Math.cos(nu));
-
-		// orbital plane coords (perifocal): z' = 0
-		double xP = r * Math.cos(nu);
-		double yP = r * Math.sin(nu);
-
-		// Precompute trig
-		double cO = Math.cos(omegaBig),  sO = Math.sin(omegaBig);   // Ω
-		double ci = Math.cos(incl),      si = Math.sin(incl);       // i
-		double cw = Math.cos(omegaSmall),sw = Math.sin(omegaSmall); // ω
-
-		// Perifocal -> ecliptic (standard 3-1-3: Rz(Ω) Rx(i) Rz(ω))
-		double xEc =
-				(cO*cw - sO*sw*ci) * xP +
-						(-cO*sw - sO*cw*ci) * yP;
-
-		double yEc =
-				(sO*cw + cO*sw*ci) * xP +
-						(-sO*sw + cO*cw*ci) * yP;
-
-		double zEc =
-				(sw*si) * xP +
-						(cw*si) * yP;
-
-		// ECLIPTIC -> ENGINE remap (same as ringNormalFromPoleRADec)
-		double x = xEc;
-		double y = zEc;  // engine Y = ecliptic Z
-		double z = yEc;  // engine Z = ecliptic Y
-
-		return new Vector3d(
-				parentPos.x + x,
-				parentPos.y + y,
-				parentPos.z + z
-		);
-	}
-
 	private double estimatePixelsPerUnitAt(double wx, double wy, double wz) {
 		// project center
-		frustrum.worldToCameraSpaceDirect(wx, wy, wz, orbitCamTmp);
-		if (!frustrum.project3DTo2D(orbitCamTmp[0], orbitCamTmp[1], orbitCamTmp[2],
+		frustum.worldToCameraSpaceDirect(wx, wy, wz, orbitCamTmp);
+		if (!frustum.project3DTo2D(orbitCamTmp[0], orbitCamTmp[1], orbitCamTmp[2],
 				VIEW_WIDTH, VIEW_HEIGHT, orbitCenterScreenTmp)) {
 			return 0.0;
 		}
 
 		// project a point 1 unit to the camera-right direction in world space:
-		// Use Frustum basis helper (you already call computeCameraBasis elsewhere, though currently allocating arrays). :contentReference[oaicite:6]{index=6}
+		// Use Frustum basis helper (you already call computeCameraBasis elsewhere, though currently allocating arrays).
 		double[] f = new double[3];
 		double[] r = new double[3];
 		double[] u = new double[3];
@@ -604,8 +512,8 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 		double wy2 = wy + r[1];
 		double wz2 = wz + r[2];
 
-		frustrum.worldToCameraSpaceDirect(wx2, wy2, wz2, orbitCamTmp);
-		if (!frustrum.project3DTo2D(orbitCamTmp[0], orbitCamTmp[1], orbitCamTmp[2],
+		frustum.worldToCameraSpaceDirect(wx2, wy2, wz2, orbitCamTmp);
+		if (!frustum.project3DTo2D(orbitCamTmp[0], orbitCamTmp[1], orbitCamTmp[2],
 				VIEW_WIDTH, VIEW_HEIGHT, orbitScreenTmp)) {
 			return 0.0;
 		}
@@ -656,9 +564,9 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	    Body nearest = null;
 	    double bestDist2 = Double.POSITIVE_INFINITY;
 
-	    double cx = frustrum.cameraX;
-	    double cy = frustrum.cameraY;
-	    double cz = frustrum.cameraZ;
+	    double cx = frustum.cameraX;
+	    double cy = frustum.cameraY;
+	    double cz = frustum.cameraZ;
 
 	    // Helper lambda-like thing for each list:
 	    java.util.List<Body> all = new ArrayList<>();
@@ -709,9 +617,9 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	    for (Planet p : ps) {
 	        if (p == null) continue;
 
-	        double dx = frustrum.cameraX - p.getX();
-	        double dy = frustrum.cameraY - p.getY();
-	        double dz = frustrum.cameraZ - p.getZ();
+	        double dx = frustum.cameraX - p.getX();
+	        double dy = frustum.cameraY - p.getY();
+	        double dz = frustum.cameraZ - p.getZ();
 	        double d  = java.lang.Math.sqrt(dx*dx + dy*dy + dz*dz);
 
 	        double sysR = estimateSystemRadiusUnits(p);
@@ -753,7 +661,7 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	    if (b == focusPlanet) return true;
 	    if (b instanceof Moon) return ((Moon) b).getPlanet() == focusPlanet;
 
-	    // other planets, asteroids, etc are “outside focus”
+	    // other planets, asteroids, etc. are “outside focus”
 	    return false;
 	}
 
@@ -783,7 +691,7 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	        double bz = keyBody.getZ();
 
 	        double keyDist = new Vector3d(bx, by, bz)
-	                .distance(new Vector3d(frustrum.cameraX, frustrum.cameraY, frustrum.cameraZ)); 
+	                .distance(new Vector3d(frustum.cameraX, frustum.cameraY, frustum.cameraZ));
 
 	        int j = i - 1;
 	        while (j >= 0) {
@@ -793,7 +701,7 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	            double jbz = jb.getZ();
 
 	            double jbDist = new Vector3d(jbx, jby, jbz)
-	                    .distance(new Vector3d(frustrum.cameraX, frustrum.cameraY, frustrum.cameraZ));
+	                    .distance(new Vector3d(frustum.cameraX, frustum.cameraY, frustum.cameraZ));
 
 	            if (jbDist >= keyDist) break;
 
@@ -842,16 +750,16 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
     }
 
 	public void keyReleased(KeyEvent e) {
-		if (controls != null && controls.handleKeyReleased(e, camera)) {
-			return;
-		}
-	}
+        if (controls != null) {
+            controls.handleKeyReleased(e, camera);
+        }
+    }
 
 	public void keyPressed(KeyEvent e) {
-		if (controls != null && controls.handleKeyPressed(e, camera, this)) {
-			return;
-		}
-	}
+        if (controls != null) {
+            controls.handleKeyPressed(e, camera, this);
+        }
+    }
 
 	@Override
 	public void mousePressed(MouseEvent e) {
@@ -919,88 +827,19 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	public void load(Scanner load) {
 		SystemSerializer.load(this, load);
 	}
-
-	private static final double MIN_VISUAL_RING_WIDTH_KM = 120.0;
-
-	private static void addRingletCenterWidthKm(
-	        RingSystem rs,
-	        double centerKm,
-	        double widthKm,
-	        int particles,
-	        Color color,
-	        float opticalDepth
-	) {
-	    double w = Math.max(widthKm, MIN_VISUAL_RING_WIDTH_KM);
-	    double innerUnits = (centerKm - 0.5 * w) / Space.SCALE_KM_PER_UNIT;
-	    double outerUnits = (centerKm + 0.5 * w) / Space.SCALE_KM_PER_UNIT;
-	    rs.addBand(new RingSystem.RingBand(innerUnits, outerUnits, particles, color, opticalDepth));
-	}
-
-	private static void addRingRangeKm(
-	        RingSystem rs,
-	        double innerKm,
-	        double outerKm,
-	        int particles,
-	        Color color,
-	        float opticalDepth
-	) {
-	    double innerUnits = innerKm / Space.SCALE_KM_PER_UNIT;
-	    double outerUnits = outerKm / Space.SCALE_KM_PER_UNIT;
-	    rs.addBand(new RingSystem.RingBand(innerUnits, outerUnits, particles, color, opticalDepth));
-	}
 	
-	private static Vector3d ringNormalFromPoleRADec(double raDeg, double decDeg) {
-	    double ra  = Math.toRadians(raDeg);
-	    double dec = Math.toRadians(decDeg);
-
-	    // 1) Equatorial pole vector
-	    double xEq = Math.cos(dec) * Math.cos(ra);
-	    double yEq = Math.cos(dec) * Math.sin(ra);
-	    double zEq = Math.sin(dec);
-
-	    // 2) Rotate equatorial → ecliptic
-	    double eps = Math.toRadians(23.439281); // J2000 obliquity
-	    double xEc = xEq;
-	    double yEc =  Math.cos(eps)*yEq + Math.sin(eps)*zEq;
-	    double zEc = -Math.sin(eps)*yEq + Math.cos(eps)*zEq;
-
-	    // 3) Remap to your engine frame (X, Z, Y)
-	    Vector3d n = new Vector3d(
-	        xEc,
-	        zEc,  // engine Y = ecliptic Z
-	        yEc   // engine Z = ecliptic Y
-	    );
-
-	    return n.normalize();
-	}
-
-	
-	public void keyTyped(KeyEvent e) {
-		
-	}
+	public void keyTyped(KeyEvent e) {}
 
 	@Override
-	public void mouseClicked(MouseEvent e) {
-		// TODO Auto-generated method stub
-		
-	}
+	public void mouseClicked(MouseEvent e) {}
 
 	@Override
-	public void mouseEntered(MouseEvent e) {
-		// TODO Auto-generated method stub
-		
-	}
+	public void mouseEntered(MouseEvent e) {}
 
 	@Override
-	public void mouseExited(MouseEvent e) {
-		// TODO Auto-generated method stub
-		
-	}
+	public void mouseExited(MouseEvent e) {}
 
 	@Override
-	public void mouseMoved(MouseEvent e) {
-		
-	}
-
+	public void mouseMoved(MouseEvent e) {}
 
 }
