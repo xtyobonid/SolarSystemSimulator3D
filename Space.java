@@ -38,7 +38,8 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 
 	private final CameraController camera;
 	private final Controls controls = new Controls();
-	
+	private final SolarSystem model;
+
 	public static Frustum frustum;
 	
 	public static int VIEW_WIDTH;
@@ -95,15 +96,18 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	// if you want to convert to km in HUD:
     public static final double SCALE_KM_PER_UNIT = 100.0; // keep in sync with generator
 
-	public Space (int viewWidth, int viewHeight, int actualWidth, int actualHeight, ArrayList<Planet> ps2, Star s2, ArrayList<Moon> ss2) {
+	public Space (int viewWidth, int viewHeight, int actualWidth, int actualHeight, SolarSystem model) {
 		setBackground(Color.BLACK);
 		
 		lastCurrentTime = System.nanoTime();
-		
-		ps = ps2;
-		star = s2;	
-		ss = ss2;
-		asteroids = new ArrayList<Asteroid>();
+
+		this.model = model;
+
+		this.ps = model.getPlanets();
+		this.ss = model.getMoons();
+		this.asteroids = model.getAsteroids();
+		this.star = model.getStar();
+
 		displaySpeed = 1;
 		VIEW_WIDTH = viewWidth;
 		VIEW_HEIGHT = viewHeight;
@@ -595,7 +599,9 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	        infoHudUntilNanos = lastCurrentTime + INFO_HUD_DURATION_NANOS;
 	    }
 	}
-	
+
+	public SolarSystem getModel() { return model; }
+
 	/** Decide which planet system we are “in” (or null if global view). */
 	private void updateFocusSystem() {
 	    if (!focusCullingEnabled) { focusPlanet = null; return; }

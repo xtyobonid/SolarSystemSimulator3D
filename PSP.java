@@ -91,12 +91,13 @@ public class PSP extends JFrame implements ActionListener, ChangeListener {
 		super("PSP");
 		setSize(VIEW_WIDTH, VIEW_HEIGHT);
 		setLocation(0,0);
-		
-		planets = new ArrayList<Planet>();
-		moons = new ArrayList<Moon>();
-		star = new Star(ACTUAL_WIDTH, ACTUAL_HEIGHT, SUN_RADIUS);
-		
-		tg = new Space(VIEW_WIDTH, VIEW_HEIGHT, ACTUAL_WIDTH, ACTUAL_HEIGHT, planets, star, moons);
+
+		Star star = new Star(ACTUAL_WIDTH, ACTUAL_HEIGHT, SUN_RADIUS);
+
+		SolarSystem model = new SolarSystem(star);
+
+		tg = new Space(VIEW_WIDTH, VIEW_HEIGHT, ACTUAL_WIDTH, ACTUAL_HEIGHT, model);
+
 		((Component)tg).setFocusable(true);
 		
 		getContentPane().add(tg);
