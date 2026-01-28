@@ -1,5 +1,4 @@
 import java.awt.*;
-import java.awt.image.BufferedImage;
 import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
@@ -15,39 +14,28 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	private final ArrayList<Planet> ps;
 	private final ArrayList<Moon> ss;
 	private final ArrayList<Asteroid> asteroids;
-	private BufferedImage back;
+	private final SolarSystem model;
+
 	private double displaySpeed;
 	
 	private long lastCurrentTime;
 	public long simulationTime;
 
-	// --- Accessors for serialization / refactoring ---
-	public Star getStar() { return star; }
-	public ArrayList<Planet> getPlanets() { return ps; }
-	public ArrayList<Moon> getMoons() { return ss; }
-	public ArrayList<Asteroid> getAsteroids() { return asteroids; }
-	public double getDisplaySpeed() { return displaySpeed; }
-	public void setSimulationTime(long t) { simulationTime = t; }
-	public void resetTimingAfterLoad() { lastCurrentTime = System.nanoTime(); }
-	
+	private final Controls controls = new Controls();
+	private final Renderer renderer = new SoftwareRenderer();
+
 	public double viewX;
 	public double viewY;
-	
+
 	public static double yaw;
 	public static double pitch;
-
-	private final CameraController camera;
-	private final Controls controls = new Controls();
-	private final SolarSystem model;
-
 	public static Frustum frustum;
+	private final CameraController camera;
 	
 	public static int VIEW_WIDTH;
 	public static int VIEW_HEIGHT;
-	
 	public static int ACTUAL_WIDTH;
 	public static int ACTUAL_HEIGHT;
-
 	
 	public boolean showLabels = false;
 	public boolean showIcons = true;
@@ -88,13 +76,27 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	public int orbitSegmentsMin = 48;
 	public int orbitSegmentsMax = 200;
 
-	// Reuse buffers to avoid GC
-	private final double[] orbitCamTmp = new double[4];
-	private final java.awt.geom.Point2D.Double orbitScreenTmp = new java.awt.geom.Point2D.Double();
-	private final java.awt.geom.Point2D.Double orbitCenterScreenTmp = new java.awt.geom.Point2D.Double();
-
 	// if you want to convert to km in HUD:
     public static final double SCALE_KM_PER_UNIT = 100.0; // keep in sync with generator
+
+	// --- Accessors for serialization / refactoring ---
+	public Star getStar() { return star; }
+	public ArrayList<Planet> getPlanets() { return ps; }
+	public ArrayList<Moon> getMoons() { return ss; }
+	public ArrayList<Asteroid> getAsteroids() { return asteroids; }
+
+	public Starfield getStarfield() { return starfield; }
+
+	public double getDisplaySpeed() { return displaySpeed; }
+	public double getBaseSpeed() { return camera.getBaseSpeed(); }
+	public int getSpeedLevel() { return camera.getSpeedLevel(); }
+
+	public Body getLastInfoBody() { return lastInfoBody; }
+	public long getInfoHudUntilNanos() { return infoHudUntilNanos; }
+	public long getLastCurrentTime() { return lastCurrentTime; }
+
+	public void setSimulationTime(long t) { simulationTime = t; }
+	public void resetTimingAfterLoad() { lastCurrentTime = System.nanoTime(); }
 
 	public Space (int viewWidth, int viewHeight, int actualWidth, int actualHeight, SolarSystem model) {
 		setBackground(Color.BLACK);
@@ -197,373 +199,11 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	        System.out.println("FRAME SPIKE: " + frameMs + " ms | heap " + used + " / " + total + " MB");
 	    }
 	}
-	
-	public void paint (Graphics window) {
-		
-		Graphics2D tdg = (Graphics2D) window;
-		
-		if(back==null)
-		   back = (BufferedImage)(createImage(getWidth(),getHeight()));
-		   
-		Graphics2D gtb = back.createGraphics();
-		
-		gtb.setColor(Color.BLACK);
-		gtb.fillRect(0,0,VIEW_WIDTH,VIEW_HEIGHT);
 
-		// Orbits (draw behind bodies)
-		drawOrbits(gtb);
-
-		// Starfield
-		if (showStars && starfield != null) {
-			starfield.draw(gtb, frustum, VIEW_WIDTH, VIEW_HEIGHT);
-		}
-
-		//add all bodies to list, sort by distance to camera, draw closest to camera first
-
-        ArrayList<Body> drawList = new ArrayList<Body>(ss);
-
-        drawList.addAll(ps);
-
-        drawList.addAll(asteroids);
-		
-		drawList.add(star);
-		
-		drawList = sortDrawList(drawList);
-		
-		for(Body b: drawList) {
-			b.draw(gtb, this, frustum);
-		}
-		
-		// HUD overlay
-	    gtb.setColor(Color.WHITE);
-	    int hudY = 20;
-
-		double speed = (camera != null ? camera.getCurrentSpeedUnitsPerSecond() : 0.0) * SCALE_KM_PER_UNIT;
-	    double simSecondsPerSecond = displaySpeed; // because simTime += realTime * displaySpeed
-	    String simSpeedStr = formatSimSpeed(simSecondsPerSecond);
-	    
-	    gtb.drawString("Sim Speed: " + simSpeedStr, 10, hudY);
-	    hudY += 15;
-		gtb.drawString(
-				String.format("Speed: base * 2^%d  (%.3g km/s)", (camera != null ? camera.getSpeedLevel() : 0), speed),
-				10, hudY
-		);
-	    hudY += 15;
-	    gtb.drawString("W/S: forward/back  A/D: strafe  Space/Ctrl: up/down  Q/E: speed -/+  L: toggle labels  ?:  Show nearest body info", 10, hudY);
-	    hudY += 45;
-	    
-	    // --- Nearest body info HUD (when '?' pressed) ---
-	    if (lastInfoBody != null && lastCurrentTime < infoHudUntilNanos) {
-	        double bx = lastInfoBody.getX();
-	        double by = lastInfoBody.getY();
-	        double bz = lastInfoBody.getZ();
-
-	        double cx = frustum.cameraX;
-	        double cy = frustum.cameraY;
-	        double cz = frustum.cameraZ;
-
-	        double dx = bx - cx;
-	        double dy = by - cy;
-	        double dz = bz - cz;
-
-	        double distUnits = Math.sqrt(dx*dx + dy*dy + dz*dz);
-	        double distKm    = distUnits * SCALE_KM_PER_UNIT;
-
-	        String type = lastInfoBody.getType();
-	        String name = lastInfoBody.getName();
-	        double radiusUnits = lastInfoBody.getRadius();
-	        double radiusKm    = radiusUnits * SCALE_KM_PER_UNIT;
-
-	        gtb.setColor(Color.WHITE);
-	        gtb.drawString(
-	            String.format("Nearest: %s (%s)", name, type),
-	            10, hudY
-	        );
-	        hudY += 15;
-
-	        gtb.drawString(
-	            String.format("Distance from camera: %.3g units  (~%.3g km)", distUnits, distKm),
-	            10, hudY
-	        );
-	        hudY += 15;
-
-	        gtb.drawString(
-	            String.format("Radius: %.3g units  (~%.3g km)", radiusUnits, radiusKm),
-	            10, hudY
-	        );
-	        hudY += 15;
-
-	        // Extra details if this is an orbiting body
-	        if (lastInfoBody instanceof OrbitingBody ob) {
-                Body parent = ob.getParent();  // make sure OrbitingBody has this getter
-
-	            // Orbital elements
-	            double e = ob.e;                       // eccentricity
-	            double periodDays  = ob.periodSeconds / 86400.0;
-	            double periodYears = periodDays / 365.25;
-
-	            String parentName = (parent != null ? parent.getName() : "None");
-
-	            gtb.drawString(
-	                String.format("Orbits: %s", parentName),
-	                10, hudY
-	            );
-	            hudY += 15;
-
-	            gtb.drawString(
-	                String.format("Eccentricity: %.4f", e),
-	                10, hudY
-	            );
-	            hudY += 15;
-
-	            gtb.drawString(
-	                String.format("Orbital period: %.3g days  (%.3g years)", periodDays, periodYears),
-	                10, hudY
-	            );
-	            hudY += 15;
-
-	            // Distance from parent *right now*
-	            if (parent != null) {
-	                double px = parent.getX();
-	                double py = parent.getY();
-	                double pz = parent.getZ();
-
-	                double pdx = bx - px;
-	                double pdy = by - py;
-	                double pdz = bz - pz;
-
-	                double parentDistUnits = Math.sqrt(pdx*pdx + pdy*pdy + pdz*pdz);
-	                double parentDistKm    = parentDistUnits * SCALE_KM_PER_UNIT;
-
-	                gtb.drawString(
-	                    String.format("Current distance to parent: %.3g units  (~%.3g km)",
-	                                  parentDistUnits, parentDistKm),
-	                    10, hudY
-	                );
-	                hudY += 15;
-	            }
-	        }
-	    }
-
-		tdg.drawImage(back, null, 0, 0);
+	public void paint(Graphics window) {
+		renderer.render(window, this);
 	}
 
-	private void drawOrbits(Graphics2D g2) {
-		if (!showPlanetOrbits && !showMoonOrbits && !showAsteroidOrbits) return;
-
-		// We want these to obey your focus-system rule too:
-		// shouldDrawOverlaysFor(...) already encodes: sun always, focus system, etc.
-		// We’ll reuse it for orbits as well.
-
-		java.awt.Composite oldComp = g2.getComposite();
-		java.awt.Stroke oldStroke = g2.getStroke();
-
-		g2.setStroke(new BasicStroke(1f));
-
-		if (showPlanetOrbits) {
-			for (Planet p : ps) {
-				if (p == null) continue;
-				if (!shouldDrawOverlaysFor(p)) continue;
-				drawOrbitPathFor(p, g2);
-			}
-		}
-
-		if (showMoonOrbits) {
-			for (Moon m : ss) {
-				if (m == null) continue;
-				if (!shouldDrawOverlaysFor(m)) continue;
-				drawOrbitPathFor(m, g2);
-			}
-		}
-
-		if (showAsteroidOrbits) {
-			for (Asteroid a : asteroids) {
-				if (a == null) continue;
-				if (!shouldDrawOverlaysFor(a)) continue;
-				drawOrbitPathFor(a, g2);
-			}
-		}
-
-		g2.setComposite(oldComp);
-		g2.setStroke(oldStroke);
-	}
-
-	private void drawOrbitPathFor(OrbitingBody ob, Graphics2D g2) {
-		Body parent = ob.getParent();
-		if (parent == null) return;
-
-		// Orbit scale in world units
-		double a = ob.getSemiMajorAxis();   // you already use this for moons in estimateSystemRadiusUnits
-		double e = ob.e;
-
-		double apo = a * (1.0 + e);
-		if (apo <= 0) return;
-
-		// Project orbit center (parent) to estimate on-screen size
-		frustum.worldToCameraSpaceDirect(parent.getX(), parent.getY(), parent.getZ(), orbitCamTmp);
-		if (!frustum.project3DTo2D(
-				orbitCamTmp[0], orbitCamTmp[1], orbitCamTmp[2],
-				VIEW_WIDTH, VIEW_HEIGHT, orbitCenterScreenTmp
-		)) {
-			// Center not projectable => usually orbit won’t be helpful
-			return;
-		}
-
-		// Estimate pixels-per-unit using parent depth
-		// We can approximate by projecting a point offset by 1 unit along camera-right.
-		double pxPerUnit = estimatePixelsPerUnitAt(parent.getX(), parent.getY(), parent.getZ());
-		if (pxPerUnit <= 0) return;
-
-		double orbitPx = apo * pxPerUnit;
-		if (orbitPx < orbitMinVisiblePx) return;
-
-		// Fade orbits similar in spirit to overlay fading (but tuned separately)
-		double t = orbitPx / orbitFadeRefPx;
-		t = Math.max(0.0, Math.min(1.0, t));
-		double shaped = java.lang.Math.pow(t, orbitFadeGamma);
-		float alpha = (float)(orbitBaseAlpha * shaped);
-		if (alpha <= 0.001f) return;
-
-		g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
-		g2.setColor(orbitTint(ob.color, 0.25f, 70));
-
-		// Adaptive segment count based on orbit size on screen
-		int seg = (int)Math.round(orbitSegmentsMin + (orbitSegmentsMax - orbitSegmentsMin) * Math.min(1.0, orbitPx / 400.0));
-		seg = Math.max(orbitSegmentsMin, Math.min(orbitSegmentsMax, seg));
-
-		// Precompute rotation terms (typical Ω-i-ω transform)
-		double cosO = Math.cos(ob.omegaBigRad);
-		double sinO = Math.sin(ob.omegaBigRad);
-		double cosI = Math.cos(ob.inclRad);
-		double sinI = Math.sin(ob.inclRad);
-		double cosw = Math.cos(ob.omegaSmallRad);
-		double sinw = Math.sin(ob.omegaSmallRad);
-
-		// We will draw segments only when consecutive points are projectable
-		boolean hasPrev = false;
-		int prevX = 0, prevY = 0;
-
-		for (int i = 0; i <= seg; i++) {
-			double nu = (2.0 * Math.PI) * (i / (double)seg); // true anomaly
-			double r = (a * (1.0 - e*e)) / (1.0 + e * Math.cos(nu));
-
-			// Perifocal coordinates (orbit plane)
-			double xP = r * Math.cos(nu);
-			double yP = r * Math.sin(nu);
-
-			// Rotate by ω
-			double x1 = xP * cosw - yP * sinw;
-			double y1 = xP * sinw + yP * cosw;
-
-			// Rotate by i (about x)
-			double x2 = x1;
-			double y2 = y1 * cosI;
-			double z2 = y1 * sinI;
-
-			// Rotate by Ω (about z) -> this gives ECLIPTIC frame coords (xEc, yEc, zEc)
-			double xEc = x2 * cosO - y2 * sinO;
-			double yEc = x2 * sinO + y2 * cosO;
-			double zEc = z2;
-
-			// ECLIPTIC -> ENGINE remap (same convention as ringNormalFromPoleRADec):
-			// engine Y = ecliptic Z
-			// engine Z = ecliptic Y
-			double xEng = xEc;
-			double yEng = zEc;
-			double zEng = yEc;
-
-			// Translate to parent position in ENGINE coords
-			double wx = parent.getX() + xEng;
-			double wy = parent.getY() + yEng;
-			double wz = parent.getZ() + zEng;
-
-			frustum.worldToCameraSpaceDirect(wx, wy, wz, orbitCamTmp);
-			if (!frustum.project3DTo2D(
-					orbitCamTmp[0], orbitCamTmp[1], orbitCamTmp[2],
-					VIEW_WIDTH, VIEW_HEIGHT, orbitScreenTmp
-			)) {
-				hasPrev = false;
-				continue;
-			}
-
-			int x = (int)Math.round(orbitScreenTmp.x);
-			int y = (int)Math.round(orbitScreenTmp.y);
-
-			if (hasPrev) {
-				g2.drawLine(prevX, prevY, x, y);
-			}
-			prevX = x; prevY = y;
-			hasPrev = true;
-		}
-	}
-
-	private double estimatePixelsPerUnitAt(double wx, double wy, double wz) {
-		// project center
-		frustum.worldToCameraSpaceDirect(wx, wy, wz, orbitCamTmp);
-		if (!frustum.project3DTo2D(orbitCamTmp[0], orbitCamTmp[1], orbitCamTmp[2],
-				VIEW_WIDTH, VIEW_HEIGHT, orbitCenterScreenTmp)) {
-			return 0.0;
-		}
-
-		// project a point 1 unit to the camera-right direction in world space:
-		// Use Frustum basis helper (you already call computeCameraBasis elsewhere, though currently allocating arrays).
-		double[] f = new double[3];
-		double[] r = new double[3];
-		double[] u = new double[3];
-		Frustum.computeCameraBasis(yaw, pitch, f, r, u);
-
-		double wx2 = wx + r[0];
-		double wy2 = wy + r[1];
-		double wz2 = wz + r[2];
-
-		frustum.worldToCameraSpaceDirect(wx2, wy2, wz2, orbitCamTmp);
-		if (!frustum.project3DTo2D(orbitCamTmp[0], orbitCamTmp[1], orbitCamTmp[2],
-				VIEW_WIDTH, VIEW_HEIGHT, orbitScreenTmp)) {
-			return 0.0;
-		}
-
-		double dx = orbitScreenTmp.x - orbitCenterScreenTmp.x;
-		double dy = orbitScreenTmp.y - orbitCenterScreenTmp.y;
-		return Math.sqrt(dx*dx + dy*dy); // pixels per 1 world unit
-	}
-
-	private static Color orbitTint(Color bodyColor, float tintAmount, int baseGray) {
-		// tintAmount: 0 = pure gray, 1 = pure body color
-		int r = (int)(baseGray + tintAmount * (bodyColor.getRed()   - baseGray));
-		int g = (int)(baseGray + tintAmount * (bodyColor.getGreen() - baseGray));
-		int b = (int)(baseGray + tintAmount * (bodyColor.getBlue()  - baseGray));
-		r = Math.max(0, Math.min(255, r));
-		g = Math.max(0, Math.min(255, g));
-		b = Math.max(0, Math.min(255, b));
-		return new Color(r, g, b);
-	}
-
-	private String formatSimSpeed(double simSecondsPerSecond) {
-	    double sec = simSecondsPerSecond;
-
-	    if (sec < 120) { 
-	        return String.format("%.2f seconds/sec", sec);
-	    }
-
-	    double minutes = sec / 60.0;
-	    if (minutes < 120) {
-	        return String.format("%.2f minutes/sec", minutes);
-	    }
-
-	    double hours = minutes / 60.0;
-	    if (hours < 48) {
-	        return String.format("%.2f hours/sec", hours);
-	    }
-
-	    double days = hours / 24.0;
-	    if (days < 365) {
-	        return String.format("%.2f days/sec", days);
-	    }
-
-	    double years = days / 365.25;
-	    return String.format("%.2f years/sec", years);
-	}
-	
 	private void selectNearestBodyForInfoInternal() {
 	    Body nearest = null;
 	    double bestDist2 = Double.POSITIVE_INFINITY;
@@ -685,38 +325,6 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	    double a = overlayMinAlpha + (overlayMaxAlpha - overlayMinAlpha) * shaped;
 	    a = java.lang.Math.max(0.0, java.lang.Math.min(1.0, a));
 	    return (float) a;
-	}
-	
-	private static ArrayList<Body> sortDrawList(ArrayList<Body> drawList) {
-	    int n = drawList.size();
-	    for (int i = 1; i < n; ++i) {
-	        Body keyBody = drawList.get(i);
-
-	        double bx = keyBody.getX();
-	        double by = keyBody.getY();
-	        double bz = keyBody.getZ();
-
-	        double keyDist = new Vector3d(bx, by, bz)
-	                .distance(new Vector3d(frustum.cameraX, frustum.cameraY, frustum.cameraZ));
-
-	        int j = i - 1;
-	        while (j >= 0) {
-	            Body jb = drawList.get(j);
-	            double jbx = jb.getX();
-	            double jby = jb.getY();
-	            double jbz = jb.getZ();
-
-	            double jbDist = new Vector3d(jbx, jby, jbz)
-	                    .distance(new Vector3d(frustum.cameraX, frustum.cameraY, frustum.cameraZ));
-
-	            if (jbDist >= keyDist) break;
-
-	            drawList.set(j + 1, jb);
-	            j--;
-	        }
-	        drawList.set(j + 1, keyBody);
-	    }
-	    return drawList;
 	}
 
 	private void updateCameraPosition(double dtSeconds) {

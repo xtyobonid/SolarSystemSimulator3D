@@ -1,6 +1,5 @@
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 
 /**
  * Central "world state" for the simulator/builder.
@@ -18,9 +17,6 @@ public final class SolarSystem {
     private final ArrayList<Moon> moons = new ArrayList<>();
     private final ArrayList<Asteroid> asteroids = new ArrayList<>();
 
-    // Optional convenience index (rebuild when loading/changing names)
-    private final HashMap<String, Planet> planetByName = new HashMap<>();
-
     public SolarSystem(Star star) {
         this.star = star;
     }
@@ -36,17 +32,5 @@ public final class SolarSystem {
         planets.clear();
         moons.clear();
         asteroids.clear();
-        planetByName.clear();
-    }
-
-    public Planet getPlanetByName(String name) {
-        Planet p = planetByName.get(name);
-        if (p != null) return p;
-
-        // Fallback (in case index wasn't rebuilt yet)
-        for (Planet pl : planets) {
-            if (pl.getName().equals(name)) return pl;
-        }
-        return null;
     }
 }
