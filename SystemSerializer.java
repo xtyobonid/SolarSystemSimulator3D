@@ -10,7 +10,7 @@ public final class SystemSerializer {
 
     private SystemSerializer() {}
 
-    public static void save(Space space, PrintWriter out) {
+    public static void save(SimulationView space, PrintWriter out) {
         out.println(space.simulationTime);
 
         // --- Planets ---
@@ -69,7 +69,7 @@ public final class SystemSerializer {
         out.close();
     }
 
-    public static void load(Space space, Scanner load) {
+    public static void load(SimulationView space, Scanner load) {
         space.getPlanets().clear();
         space.getMoons().clear();
         space.getAsteroids().clear();

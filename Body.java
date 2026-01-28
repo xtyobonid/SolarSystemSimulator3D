@@ -27,10 +27,10 @@ public abstract class Body {
     protected abstract int getIconRadiusPx();
 
     /** Allow subclasses to hide icons completely if you ever want that. */
-    protected boolean drawFallbackIcon(Space space) { return space.showIcons; }
+    protected boolean drawFallbackIcon(SimulationView space) { return space.showIcons; }
 
     /** Subclasses will override if they want special label/hud, etc. */
-    protected void drawOverlay(Graphics g, Space s, Frustum frustum,
+    protected void drawOverlay(Graphics g, SimulationView s, Frustum frustum,
                                Point2D.Double screenPos, double pixelRadius) {
     	if (!s.showLabels) return;
         if (name == null || name.isEmpty()) return;
@@ -65,14 +65,14 @@ public abstract class Body {
     public void move(long simulationTime) {}
 
     /** Common projection + circle drawing for all spherical bodies. */
-    public void draw(Graphics g, Space s, Frustum frustum) {
+    public void draw(Graphics g, SimulationView s, Frustum frustum) {
         double worldX = x;
         double worldY = y;
         double worldZ = z;
 
         double[] cameraSpacePosition = frustum.worldToCameraSpaceDirect(worldX, worldY, worldZ);
 
-        Point2D.Double projectedPoint = frustum.project3DTo2D(cameraSpacePosition[0], cameraSpacePosition[1], cameraSpacePosition[2], Space.VIEW_WIDTH, Space.VIEW_HEIGHT);
+        Point2D.Double projectedPoint = frustum.project3DTo2D(cameraSpacePosition[0], cameraSpacePosition[1], cameraSpacePosition[2], SimulationView.VIEW_WIDTH, SimulationView.VIEW_HEIGHT);
 
         if (projectedPoint == null) {
             return;

@@ -283,7 +283,7 @@ public class Frustum {
         double bz = worldZ + rz * radiusUnits;
 
         double[] camB = fr.worldToCameraSpaceDirect(bx, by, bz);
-        Point2D.Double bScreen = fr.project3DTo2D(camB[0], camB[1], camB[2], Space.VIEW_WIDTH, Space.VIEW_HEIGHT);
+        Point2D.Double bScreen = fr.project3DTo2D(camB[0], camB[1], camB[2], SimulationView.VIEW_WIDTH, SimulationView.VIEW_HEIGHT);
         if (bScreen == null) return 0.0;
 
         double dx = bScreen.x - centerScreen.x;

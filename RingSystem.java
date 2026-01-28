@@ -100,7 +100,7 @@ public class RingSystem {
 	    // Project planet center once
 	    frustum.worldToCameraSpaceDirect(px, py, pz, camTmp);
 	    boolean planetProjected = frustum.project3DTo2D(camTmp[0], camTmp[1], camTmp[2],
-	            Space.VIEW_WIDTH, Space.VIEW_HEIGHT, planetScreenTmp);
+	            SimulationView.VIEW_WIDTH, SimulationView.VIEW_HEIGHT, planetScreenTmp);
 	    boolean canOcclude = planetProjected;
 
 	    // If planet is behind camera, still draw rings, just skip occlusion
@@ -144,11 +144,11 @@ public class RingSystem {
 	    if (pixelsPerUnit <= 0.0) {
 	        // Approximate pixels-per-unit at this distance using vertical FOV
 	        double fovRad = Math.toRadians(frustum.fov);
-	        pixelsPerUnit = (Space.VIEW_HEIGHT * 0.5) / (Math.tan(fovRad * 0.5) * distanceToCamera);
+	        pixelsPerUnit = (SimulationView.VIEW_HEIGHT * 0.5) / (Math.tan(fovRad * 0.5) * distanceToCamera);
 	    }
 	    
-	    final int W = Space.VIEW_WIDTH;
-	    final int H = Space.VIEW_HEIGHT;
+	    final int W = SimulationView.VIEW_WIDTH;
+	    final int H = SimulationView.VIEW_HEIGHT;
 
 	    for (int bi = 0; bi < bands.size(); bi++) {
 	        RingBand band = bands.get(bi);

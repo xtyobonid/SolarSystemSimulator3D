@@ -25,7 +25,7 @@ public abstract class OrbitingBody extends Body {
     }
     
     @Override
-    protected void drawOverlay(Graphics g, Space s, Frustum frustum,
+    protected void drawOverlay(Graphics g, SimulationView s, Frustum frustum,
                                Point2D.Double screenPos, double pixelRadius) {
         if (!s.showLabels) return;
         if (name == null || name.isEmpty()) return;
@@ -44,7 +44,7 @@ public abstract class OrbitingBody extends Body {
         double[] parentCam = frustum.worldToCameraSpaceDirect(parentX, parentY, parentZ);
         Point2D.Double parentScreen = frustum.project3DTo2D(
                 parentCam[0], parentCam[1], parentCam[2],
-                Space.VIEW_WIDTH, Space.VIEW_HEIGHT
+                SimulationView.VIEW_WIDTH, SimulationView.VIEW_HEIGHT
         );
 
         if (parentScreen != null) {
@@ -139,7 +139,7 @@ public abstract class OrbitingBody extends Body {
     }
     
     @Override
-    public void draw(Graphics g, Space s, Frustum frustum) {
+    public void draw(Graphics g, SimulationView s, Frustum frustum) {
         if (!(g instanceof Graphics2D g2)) {
             return;
         }
@@ -152,7 +152,7 @@ public abstract class OrbitingBody extends Body {
         double[] camPos = frustum.worldToCameraSpaceDirect(worldX, worldY, worldZ);
         Point2D.Double projectedPoint = frustum.project3DTo2D(
                 camPos[0], camPos[1], camPos[2],
-                Space.VIEW_WIDTH, Space.VIEW_HEIGHT
+                SimulationView.VIEW_WIDTH, SimulationView.VIEW_HEIGHT
         );
         if (projectedPoint == null) {
             return;
@@ -172,8 +172,8 @@ public abstract class OrbitingBody extends Body {
 
         double pixelRadius = Frustum.computePixelRadiusByProjection(frustum, worldX, worldY, worldZ, radius, projectedPoint);
         
-        final int W = Space.VIEW_WIDTH;
-        final int H = Space.VIEW_HEIGHT;
+        final int W = SimulationView.VIEW_WIDTH;
+        final int H = SimulationView.VIEW_HEIGHT;
 
         double r = pixelRadius;
 
@@ -305,8 +305,8 @@ public abstract class OrbitingBody extends Body {
                 if (r2 > 1.0) continue;
 
                 // Convert pixel -> NDC
-                double ndcX = (2.0 * mid) / (double)Space.VIEW_WIDTH  - 1.0;
-                double ndcY = 1.0 - (2.0 * yPix) / (double)Space.VIEW_HEIGHT;
+                double ndcX = (2.0 * mid) / (double) SimulationView.VIEW_WIDTH  - 1.0;
+                double ndcY = 1.0 - (2.0 * yPix) / (double) SimulationView.VIEW_HEIGHT;
 
                 // Point on near plane in camera space, then ray dir
                 double px = ndcX * nearHalfW;

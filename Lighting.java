@@ -27,7 +27,7 @@ public final class Lighting {
         double dist2 = dx*dx + dy*dy + dz*dz;
         if (dist2 < 1e-12) dist2 = 1e-12;
 
-        double auUnits = AU_KM / Space.SCALE_KM_PER_UNIT;
+        double auUnits = AU_KM / SimulationView.SCALE_KM_PER_UNIT;
         double s = (auUnits * auUnits) / dist2;     // inverse-square relative to 1 AU
         if (s < SOLAR_MIN) s = SOLAR_MIN;
         if (s > SOLAR_MAX) s = SOLAR_MAX;

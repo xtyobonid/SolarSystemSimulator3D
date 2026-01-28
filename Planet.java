@@ -48,7 +48,7 @@ public class Planet extends OrbitingBody {
 	    meanMotion    = (2.0 * Math.PI) / periodSeconds;
 	}
 	
-	public void draw(Graphics g, Space s, Frustum frustum) {
+	public void draw(Graphics g, SimulationView s, Frustum frustum) {
         // draw the planet itself
         super.draw(g, s, frustum);
 

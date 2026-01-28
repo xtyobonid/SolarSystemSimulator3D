@@ -19,12 +19,12 @@ public final class SoftwareRenderer implements Renderer {
     private final Point2D.Double orbitCenterScreenTmp = new Point2D.Double();
 
     @Override
-    public void render(Graphics window, Space space) {
+    public void render(Graphics window, SimulationView space) {
         Graphics2D tdg = (Graphics2D) window;
 
         // Back buffer
-        int w = Space.VIEW_WIDTH;
-        int h = Space.VIEW_HEIGHT;
+        int w = SimulationView.VIEW_WIDTH;
+        int h = SimulationView.VIEW_HEIGHT;
         if (back == null || back.getWidth() != w || back.getHeight() != h) {
             back = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
         }
@@ -40,7 +40,7 @@ public final class SoftwareRenderer implements Renderer {
 
         // Starfield
         if (space.showStars && space.getStarfield() != null) {
-            space.getStarfield().draw(gtb, Space.frustum, w, h);
+            space.getStarfield().draw(gtb, SimulationView.frustum, w, h);
         }
 
         // Build draw list (same ordering and behavior as before)
@@ -55,7 +55,7 @@ public final class SoftwareRenderer implements Renderer {
 
         // Draw bodies
         for (Body b : drawList) {
-            b.draw(gtb, space, Space.frustum);
+            b.draw(gtb, space, SimulationView.frustum);
         }
 
         // HUD
@@ -65,14 +65,14 @@ public final class SoftwareRenderer implements Renderer {
         tdg.drawImage(back, null, 0, 0);
     }
 
-    private void drawHud(Graphics2D gtb, Space space) {
+    private void drawHud(Graphics2D gtb, SimulationView space) {
         gtb.setColor(Color.WHITE);
         int hudY = 20;
 
         double baseSpeed = space.getBaseSpeed();
         int speedLevel = space.getSpeedLevel();
 
-        double speedKmPerSec = baseSpeed * java.lang.Math.pow(2.0, speedLevel) * Space.SCALE_KM_PER_UNIT;
+        double speedKmPerSec = baseSpeed * java.lang.Math.pow(2.0, speedLevel) * SimulationView.SCALE_KM_PER_UNIT;
         double simSecondsPerSecond = space.getDisplaySpeed();
         String simSpeedStr = formatSimSpeed(simSecondsPerSecond);
 
@@ -98,21 +98,21 @@ public final class SoftwareRenderer implements Renderer {
             double by = lastInfoBody.getY();
             double bz = lastInfoBody.getZ();
 
-            double cx = Space.frustum.cameraX;
-            double cy = Space.frustum.cameraY;
-            double cz = Space.frustum.cameraZ;
+            double cx = SimulationView.frustum.cameraX;
+            double cy = SimulationView.frustum.cameraY;
+            double cz = SimulationView.frustum.cameraZ;
 
             double dx = bx - cx;
             double dy = by - cy;
             double dz = bz - cz;
 
             double distUnits = java.lang.Math.sqrt(dx * dx + dy * dy + dz * dz);
-            double distKm = distUnits * Space.SCALE_KM_PER_UNIT;
+            double distKm = distUnits * SimulationView.SCALE_KM_PER_UNIT;
 
             String type = lastInfoBody.getType();
             String name = lastInfoBody.getName();
             double radiusUnits = lastInfoBody.getRadius();
-            double radiusKm = radiusUnits * Space.SCALE_KM_PER_UNIT;
+            double radiusKm = radiusUnits * SimulationView.SCALE_KM_PER_UNIT;
 
             gtb.setColor(Color.WHITE);
             gtb.drawString(String.format("Nearest: %s (%s)", name, type), 10, hudY);
@@ -163,7 +163,7 @@ public final class SoftwareRenderer implements Renderer {
                     double pdz = bz - pz;
 
                     double parentDistUnits = java.lang.Math.sqrt(pdx * pdx + pdy * pdy + pdz * pdz);
-                    double parentDistKm = parentDistUnits * Space.SCALE_KM_PER_UNIT;
+                    double parentDistKm = parentDistUnits * SimulationView.SCALE_KM_PER_UNIT;
 
                     gtb.drawString(
                             String.format(
@@ -178,7 +178,7 @@ public final class SoftwareRenderer implements Renderer {
         }
     }
 
-    private void drawOrbits(Graphics2D g2, Space space) {
+    private void drawOrbits(Graphics2D g2, SimulationView space) {
         if (!space.showPlanetOrbits && !space.showMoonOrbits && !space.showAsteroidOrbits) return;
 
         Composite oldComp = g2.getComposite();
@@ -214,7 +214,7 @@ public final class SoftwareRenderer implements Renderer {
         g2.setStroke(oldStroke);
     }
 
-    private void drawOrbitPathFor(OrbitingBody ob, Graphics2D g2, Space space) {
+    private void drawOrbitPathFor(OrbitingBody ob, Graphics2D g2, SimulationView space) {
         Body parent = ob.getParent();
         if (parent == null) return;
 
@@ -225,10 +225,10 @@ public final class SoftwareRenderer implements Renderer {
         if (apo <= 0) return;
 
         // Project orbit center (parent) to estimate on-screen size
-        Space.frustum.worldToCameraSpaceDirect(parent.getX(), parent.getY(), parent.getZ(), orbitCamTmp);
-        if (!Space.frustum.project3DTo2D(
+        SimulationView.frustum.worldToCameraSpaceDirect(parent.getX(), parent.getY(), parent.getZ(), orbitCamTmp);
+        if (!SimulationView.frustum.project3DTo2D(
                 orbitCamTmp[0], orbitCamTmp[1], orbitCamTmp[2],
-                Space.VIEW_WIDTH, Space.VIEW_HEIGHT, orbitCenterScreenTmp
+                SimulationView.VIEW_WIDTH, SimulationView.VIEW_HEIGHT, orbitCenterScreenTmp
         )) {
             return;
         }
@@ -298,10 +298,10 @@ public final class SoftwareRenderer implements Renderer {
             double wy = parent.getY() + yEng;
             double wz = parent.getZ() + zEng;
 
-            Space.frustum.worldToCameraSpaceDirect(wx, wy, wz, orbitCamTmp);
-            if (!Space.frustum.project3DTo2D(
+            SimulationView.frustum.worldToCameraSpaceDirect(wx, wy, wz, orbitCamTmp);
+            if (!SimulationView.frustum.project3DTo2D(
                     orbitCamTmp[0], orbitCamTmp[1], orbitCamTmp[2],
-                    Space.VIEW_WIDTH, Space.VIEW_HEIGHT, orbitScreenTmp
+                    SimulationView.VIEW_WIDTH, SimulationView.VIEW_HEIGHT, orbitScreenTmp
             )) {
                 hasPrev = false;
                 continue;
@@ -319,10 +319,10 @@ public final class SoftwareRenderer implements Renderer {
 
     private double estimatePixelsPerUnitAt(double wx, double wy, double wz) {
         // project center
-        Space.frustum.worldToCameraSpaceDirect(wx, wy, wz, orbitCamTmp);
-        if (!Space.frustum.project3DTo2D(
+        SimulationView.frustum.worldToCameraSpaceDirect(wx, wy, wz, orbitCamTmp);
+        if (!SimulationView.frustum.project3DTo2D(
                 orbitCamTmp[0], orbitCamTmp[1], orbitCamTmp[2],
-                Space.VIEW_WIDTH, Space.VIEW_HEIGHT, orbitCenterScreenTmp
+                SimulationView.VIEW_WIDTH, SimulationView.VIEW_HEIGHT, orbitCenterScreenTmp
         )) {
             return 0.0;
         }
@@ -331,16 +331,16 @@ public final class SoftwareRenderer implements Renderer {
         double[] f = new double[3];
         double[] r = new double[3];
         double[] u = new double[3];
-        Frustum.computeCameraBasis(Space.yaw, Space.pitch, f, r, u);
+        Frustum.computeCameraBasis(SimulationView.yaw, SimulationView.pitch, f, r, u);
 
         double wx2 = wx + r[0];
         double wy2 = wy + r[1];
         double wz2 = wz + r[2];
 
-        Space.frustum.worldToCameraSpaceDirect(wx2, wy2, wz2, orbitCamTmp);
-        if (!Space.frustum.project3DTo2D(
+        SimulationView.frustum.worldToCameraSpaceDirect(wx2, wy2, wz2, orbitCamTmp);
+        if (!SimulationView.frustum.project3DTo2D(
                 orbitCamTmp[0], orbitCamTmp[1], orbitCamTmp[2],
-                Space.VIEW_WIDTH, Space.VIEW_HEIGHT, orbitScreenTmp
+                SimulationView.VIEW_WIDTH, SimulationView.VIEW_HEIGHT, orbitScreenTmp
         )) {
             return 0.0;
         }
@@ -396,7 +396,7 @@ public final class SoftwareRenderer implements Renderer {
             double bz = keyBody.getZ();
 
             double keyDist = new Vector3d(bx, by, bz)
-                    .distance(new Vector3d(Space.frustum.cameraX, Space.frustum.cameraY, Space.frustum.cameraZ));
+                    .distance(new Vector3d(SimulationView.frustum.cameraX, SimulationView.frustum.cameraY, SimulationView.frustum.cameraZ));
 
             int j = i - 1;
             while (j >= 0) {
@@ -406,7 +406,7 @@ public final class SoftwareRenderer implements Renderer {
                 double jbz = jb.getZ();
 
                 double jbDist = new Vector3d(jbx, jby, jbz)
-                        .distance(new Vector3d(Space.frustum.cameraX, Space.frustum.cameraY, Space.frustum.cameraZ));
+                        .distance(new Vector3d(SimulationView.frustum.cameraX, SimulationView.frustum.cameraY, SimulationView.frustum.cameraZ));
 
                 if (jbDist >= keyDist) break;
 

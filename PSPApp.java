@@ -17,7 +17,7 @@ import javax.swing.JSlider;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 
-public class PSP extends JFrame implements ActionListener, ChangeListener {
+public class PSPApp extends JFrame implements ActionListener, ChangeListener {
 	
 	private static java.awt.Dimension scr = java.awt.Toolkit.getDefaultToolkit().getScreenSize();
 	public static final int VIEW_WIDTH = scr.width;
@@ -74,7 +74,7 @@ public class PSP extends JFrame implements ActionListener, ChangeListener {
 	private static JLabel mOrbitDistanceL;
 	private static JLabel mOrbitSpeedL;
 	private static JLabel mColorL;
-	
+
 	private static ArrayList<Planet> planets;
 	private static ArrayList<Moon> moons;
 	private static Star star;
@@ -84,10 +84,10 @@ public class PSP extends JFrame implements ActionListener, ChangeListener {
 	
 	private int displaySpeed = 1;
 	
-	private Space tg;
+	private SimulationView tg;
 	
 	@SuppressWarnings("unchecked")
-	public PSP () {
+	public PSPApp() {
 		super("PSP");
 		setSize(VIEW_WIDTH, VIEW_HEIGHT);
 		setLocation(0,0);
@@ -96,7 +96,7 @@ public class PSP extends JFrame implements ActionListener, ChangeListener {
 
 		SolarSystem model = new SolarSystem(star);
 
-		tg = new Space(VIEW_WIDTH, VIEW_HEIGHT, ACTUAL_WIDTH, ACTUAL_HEIGHT, model);
+		tg = new SimulationView(VIEW_WIDTH, VIEW_HEIGHT, ACTUAL_WIDTH, ACTUAL_HEIGHT, model);
 
 		((Component)tg).setFocusable(true);
 		
@@ -229,7 +229,7 @@ public class PSP extends JFrame implements ActionListener, ChangeListener {
 	
 	public static void main(String[] args) {
 		
-		PSP go = new PSP();
+		PSPApp go = new PSPApp();
 		
 		javax.swing.SwingUtilities.invokeLater(new Runnable() {
             public void run() {

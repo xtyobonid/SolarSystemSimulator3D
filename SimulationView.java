@@ -8,7 +8,7 @@ import java.util.*;
 import java.io.IOException;
 import java.io.PrintWriter;
 
-public class Space extends Canvas implements MouseMotionListener, MouseListener, KeyListener, Runnable, ControlActions {
+public class SimulationView extends Canvas implements MouseMotionListener, MouseListener, KeyListener, Runnable, ControlActions {
 	
 	private final Star star;
 	private final ArrayList<Planet> ps;
@@ -98,7 +98,7 @@ public class Space extends Canvas implements MouseMotionListener, MouseListener,
 	public void setSimulationTime(long t) { simulationTime = t; }
 	public void resetTimingAfterLoad() { lastCurrentTime = System.nanoTime(); }
 
-	public Space (int viewWidth, int viewHeight, int actualWidth, int actualHeight, SolarSystem model) {
+	public SimulationView(int viewWidth, int viewHeight, int actualWidth, int actualHeight, SolarSystem model) {
 		setBackground(Color.BLACK);
 		
 		lastCurrentTime = System.nanoTime();

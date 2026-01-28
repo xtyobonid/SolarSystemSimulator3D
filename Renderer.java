@@ -7,5 +7,5 @@ import java.awt.Graphics;
  * (e.g., OpenGLRenderer) and swap implementations without touching simulation.
  */
 public interface Renderer {
-    void render(Graphics window, Space space);
+    void render(Graphics window, SimulationView space);
 }
