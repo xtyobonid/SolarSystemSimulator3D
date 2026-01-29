@@ -1,0 +1,27 @@
+plugins {
+    id 'java'
+}
+
+allprojects {
+    group = "your.group"   // optional
+    version = "0.1.0"
+
+    repositories {
+        mavenCentral()
+    }
+}
+
+subprojects {
+    apply plugin: 'java'
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(17)
+        }
+    }
+}
+
+subprojects {
+    // IntelliJ sometimes calls this even in non-Kotlin builds; harmless no-op.
+    tasks.register("prepareKotlinBuildScriptModel") {}
+}

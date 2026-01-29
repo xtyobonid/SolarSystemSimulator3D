@@ -1,0 +1,8 @@
+plugins {
+    id 'java-library'
+}
+
+dependencies {
+    // Keep core clean: NO lwjgl/opengl/glfw deps here.
+    // Pure Java only.
+}

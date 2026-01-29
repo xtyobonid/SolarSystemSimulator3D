@@ -2,7 +2,15 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/SolarSystemSimulator3D.iml" filepath="$PROJECT_DIR$/SolarSystemSimulator3D.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/1208739363/psp.iml" filepath="$PROJECT_DIR$/.idea/modules/1208739363/psp.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/psp.core.iml" filepath="$PROJECT_DIR$/.idea/modules/psp.core.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/psp.core.main.iml" filepath="$PROJECT_DIR$/.idea/modules/psp.core.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/psp.core.test.iml" filepath="$PROJECT_DIR$/.idea/modules/psp.core.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/1028120624/psp.desktop.iml" filepath="$PROJECT_DIR$/.idea/modules/1028120624/psp.desktop.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/1028120624/psp.desktop.main.iml" filepath="$PROJECT_DIR$/.idea/modules/1028120624/psp.desktop.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/1028120624/psp.desktop.test.iml" filepath="$PROJECT_DIR$/.idea/modules/1028120624/psp.desktop.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/1208739363/psp.main.iml" filepath="$PROJECT_DIR$/.idea/modules/1208739363/psp.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/1208739363/psp.test.iml" filepath="$PROJECT_DIR$/.idea/modules/1208739363/psp.test.iml" />
     </modules>
   </component>
 </project>

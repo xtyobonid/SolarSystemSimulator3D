@@ -1,0 +1,38 @@
+plugins {
+    id 'application'
+}
+
+dependencies {
+    implementation project(":core")
+
+    // --- LWJGL ---
+    def lwjglVersion = "3.4.0" // you can also generate this from lwjgl.org's configurator
+    implementation platform("org.lwjgl:lwjgl-bom:$lwjglVersion")
+
+    implementation "org.lwjgl:lwjgl"
+    implementation "org.lwjgl:lwjgl-glfw"
+    implementation "org.lwjgl:lwjgl-opengl"
+
+    // Natives (choose correct classifier for your OS)
+    def os = org.gradle.internal.os.OperatingSystem.current()
+    def natives =
+            os.isWindows() ? "natives-windows" :
+            os.isMacOsX()  ? "natives-macos" :
+                             "natives-linux"
+
+    runtimeOnly "org.lwjgl:lwjgl::$natives"
+    runtimeOnly "org.lwjgl:lwjgl-glfw::$natives"
+    runtimeOnly "org.lwjgl:lwjgl-opengl::$natives"
+
+    // --- Optional: ImGui Java (nice for future UI/tools) ---
+    // ImGui Java provides LWJGL3 backend modules. :contentReference[oaicite:0]{index=0}
+    implementation "io.github.spair:imgui-java-app:1.90.0"
+    implementation "io.github.spair:imgui-java-lwjgl3:1.90.0"
+
+    implementation "org.joml:joml:1.10.5"
+}
+
+application {
+    // You will create this class in step 8.
+    mainClass = "psp.desktop.Main"
+}
